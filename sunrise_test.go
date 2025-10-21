@@ -55,3 +55,80 @@ func TestSunriseSunset(t *testing.T) {
 		}
 	}
 }
+// Benchmark for the Sunrise function
+func BenchmarkSunrise(b *testing.B) {
+	latitude := 43.65
+	longitude := -79.38
+	year := 2024
+	month := time.June
+	day := 21
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = Sunrise(latitude, longitude, year, month, day)
+	}
+}
+
+// Benchmark for the Sunset function
+func BenchmarkSunset(b *testing.B) {
+	latitude := 43.65
+	longitude := -79.38
+	year := 2024
+	month := time.June
+	day := 21
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = Sunset(latitude, longitude, year, month, day)
+	}
+}
+
+// Benchmark for the SunriseSunset function (both values)
+func BenchmarkSunriseSunset(b *testing.B) {
+	latitude := 43.65
+	longitude := -79.38
+	year := 2024
+	month := time.June
+	day := 21
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = SunriseSunset(latitude, longitude, year, month, day)
+	}
+}
+
+// Benchmark for polar regions (edge case)
+func BenchmarkSunriseSunset_Polar(b *testing.B) {
+	latitude := 69.3321443
+	longitude := -81.6781126
+	year := 2020
+	month := time.June
+	day := 25
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = SunriseSunset(latitude, longitude, year, month, day)
+	}
+}
+
+// Benchmark for different latitudes (parallel)
+func BenchmarkSunriseSunset_Latitudes(b *testing.B) {
+	testCases := []struct {
+		name      string
+		latitude  float64
+		longitude float64
+	}{
+		{"Equator", 0, 0},
+		{"Tropical", 23.5, -45},
+		{"MidLatitude", 45, -75},
+		{"Polar", 70, -80},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, _ = SunriseSunset(tc.latitude, tc.longitude, 2024, time.June, 21)
+			}
+		})
+	}
+}

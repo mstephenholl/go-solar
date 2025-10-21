@@ -46,3 +46,23 @@ func TestJulianDayToTime(t *testing.T) {
 		}
 	}
 }
+
+// Benchmark for TimeToJulianDay function
+func BenchmarkTimeToJulianDay(b *testing.B) {
+	t := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = TimeToJulianDay(t)
+	}
+}
+
+// Benchmark for JulianDayToTime function
+func BenchmarkJulianDayToTime(b *testing.B) {
+	jd := 2451545.0
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = JulianDayToTime(jd)
+	}
+}

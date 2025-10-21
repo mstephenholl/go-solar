@@ -24,3 +24,13 @@ func TestMeanAnomaly(t *testing.T) {
 		}
 	}
 }
+
+// Benchmark for MeanAnomaly function
+func BenchmarkMeanAnomaly(b *testing.B) {
+	d := 2451545.0 // J2000 epoch
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = MeanAnomaly(d)
+	}
+}

@@ -114,3 +114,55 @@ func TestElevation(t *testing.T) {
 		}
 	}
 }
+// Benchmark for the Elevation function
+func BenchmarkElevation(b *testing.B) {
+	latitude := 40.7128
+	longitude := -74.0060
+	when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = Elevation(latitude, longitude, when)
+	}
+}
+
+// Benchmark for the TimeOfElevation function
+func BenchmarkTimeOfElevation(b *testing.B) {
+	latitude := 51.5072
+	longitude := -0.1276
+	elevation := -8.5
+	year := 2024
+	month := time.June
+	day := 21
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = TimeOfElevation(latitude, longitude, elevation, year, month, day)
+	}
+}
+
+// Benchmark for different elevation angles
+func BenchmarkTimeOfElevation_Angles(b *testing.B) {
+	testCases := []struct {
+		name      string
+		elevation float64
+	}{
+		{"Sunrise", -50.0 / 60.0},
+		{"CivilTwilight", -6.0},
+		{"NauticalTwilight", -12.0},
+		{"AstronomicalTwilight", -18.0},
+		{"GoldenHour", 6.0},
+		{"SolarNoon", 60.0},
+	}
+
+	latitude := 40.7128
+	longitude := -74.0060
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				_, _ = TimeOfElevation(latitude, longitude, tc.elevation, 2024, time.June, 21)
+			}
+		})
+	}
+}

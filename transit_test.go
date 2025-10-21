@@ -24,3 +24,15 @@ func TestTransit(t *testing.T) {
 		}
 	}
 }
+
+// Benchmark for Transit function
+func BenchmarkTransit(b *testing.B) {
+	d := 2451545.0
+	meanAnomaly := 357.5291
+	eclipticLongitude := 280.4665
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = Transit(d, meanAnomaly, eclipticLongitude)
+	}
+}
