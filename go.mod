@@ -1,3 +1,3 @@
-module github.com/nathan-osman/go-sunrise
+module github.com/mstephenholl/go-solar
 
-go 1.13
+go 1.21

@@ -1,0 +1,98 @@
+# GoReleaser configuration
+# Documentation: https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    # Ensure dependencies are up to date
+    - go mod tidy
+    # Run tests before building
+    - go test ./...
+
+builds:
+  # This is a library package, not a binary
+  # Skip builds but keep the release process
+  - skip: true
+
+archives:
+  - id: default
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - LICENSE.txt
+      - README.md
+      - CONTRIBUTING.md
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - 'typo'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: 'Performance improvements'
+      regexp: '^.*?perf(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: 'Refactors'
+      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      order: 3
+    - title: Others
+      order: 999
+
+announce:
+  skip: '{{gt .Patch 0}}'
+
+release:
+  github:
+    owner: mstephenholl
+    name: go-solar
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Release {{ .Tag }} ({{ .Date }})
+
+    Go package for calculating sunrise, sunset, and solar elevation at any location.
+
+    ### Installation
+
+    ```bash
+    go get github.com/mstephenholl/go-solar@{{ .Tag }}
+    ```
+
+    ### Usage
+
+    ```go
+    import "github.com/mstephenholl/go-solar"
+
+    rise, set := sunrise.SunriseSunset(43.65, -79.38, 2000, time.January, 1)
+    ```
+  footer: |
+    ---
+
+    **Full Changelog**: https://github.com/mstephenholl/go-solar/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+    ### Requirements
+    - Go 1.21 or later

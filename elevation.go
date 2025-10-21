@@ -46,8 +46,8 @@ func Elevation(latitude, longitude float64, when time.Time) float64 {
 		frac              = solarTransit - TimeToJulianDay(when)
 		hourAngle         = 2 * math.Pi * frac
 		// https://solarsena.com/solar-elevation-angle-altitude/
-		firstPart         = math.Sin(latitude*Degree) * math.Sin(declination*Degree)
-		secondPart        = math.Cos(latitude*Degree) * math.Cos(declination*Degree) * math.Cos(hourAngle)
+		firstPart  = math.Sin(latitude*Degree) * math.Sin(declination*Degree)
+		secondPart = math.Cos(latitude*Degree) * math.Cos(declination*Degree) * math.Cos(hourAngle)
 	)
 
 	return math.Asin(firstPart+secondPart) / Degree

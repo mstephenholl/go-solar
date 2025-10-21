@@ -17,7 +17,7 @@ func SunriseSunset(latitude, longitude float64, year int, month time.Month, day 
 		solarTransit      = SolarTransit(d, solarAnomaly, eclipticLongitude)
 		declination       = Declination(eclipticLongitude)
 		hourAngle         = HourAngle(latitude, declination)
-		frac              = hourAngle / 360
+		frac              = hourAngle / FullCircleDegrees
 		sunrise           = solarTransit - frac
 		sunset            = solarTransit + frac
 	)

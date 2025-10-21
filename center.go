@@ -9,10 +9,10 @@ import (
 // circular orbit for the given mean anomaly.
 func EquationOfCenter(solarAnomaly float64) float64 {
 	var (
-		anomalyInRad = solarAnomaly * (math.Pi / 180)
+		anomalyInRad = solarAnomaly * Degree
 		anomalySin   = math.Sin(anomalyInRad)
 		anomaly2Sin  = math.Sin(2 * anomalyInRad)
 		anomaly3Sin  = math.Sin(3 * anomalyInRad)
 	)
-	return 1.9148*anomalySin + 0.0200*anomaly2Sin + 0.0003*anomaly3Sin
+	return EquationOfCenterC1*anomalySin + EquationOfCenterC2*anomaly2Sin + EquationOfCenterC3*anomaly3Sin
 }

@@ -1,17 +1,9 @@
 package sunrise
 
 import (
-	"math"
 	"testing"
 	"time"
 )
-
-func abs(x int64) int64 {
-	if x >= 0 {
-		return x
-	}
-	return -x
-}
 
 // Sunrise is defined to be when the Sun is 50 arc minutes below the horizon.
 // This is due to atmospheric refraction and measuring the position of the top
@@ -97,10 +89,10 @@ var dataElevation = []struct {
 func TestTimeOfElevation(t *testing.T) {
 	for _, tt := range dataElevation {
 		vFirst, vSecond := TimeOfElevation(tt.inLatitude, tt.inLongitude, tt.inElevation, tt.inYear, tt.inMonth, tt.inDay)
-		if abs(vFirst.Unix()-tt.outFirst.Unix()) > 2 {
+		if Abs(vFirst.Unix()-tt.outFirst.Unix()) > 2 {
 			t.Fatalf("%s != %s", vFirst.String(), tt.outFirst.String())
 		}
-		if abs(vSecond.Unix()-tt.outSecond.Unix()) > 2 {
+		if Abs(vSecond.Unix()-tt.outSecond.Unix()) > 2 {
 			t.Fatalf("%s != %s", vSecond.String(), tt.outSecond.String())
 		}
 	}
@@ -113,11 +105,11 @@ func TestElevation(t *testing.T) {
 		}
 
 		vFirst := Elevation(tt.inLatitude, tt.inLongitude, tt.outFirst)
-		if math.Abs(vFirst-tt.inElevation) > 2 {
+		if !AlmostEqual(vFirst, tt.inElevation, 2.0) {
 			t.Fatalf("%f != %f", vFirst, tt.inElevation)
 		}
 		vSecond := Elevation(tt.inLatitude, tt.inLongitude, tt.outSecond)
-		if math.Abs(vSecond-tt.inElevation) > 2 {
+		if !AlmostEqual(vSecond, tt.inElevation, 2.0) {
 			t.Fatalf("%f != %f", vSecond, tt.inElevation)
 		}
 	}
