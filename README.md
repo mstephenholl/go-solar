@@ -13,7 +13,8 @@ A modern, well-tested Go package for calculating sunrise, sunset, and solar elev
 ## ✨ Features
 
 - 🌅 Calculate sunrise and sunset times for any location
-- 📐 Determine solar elevation angles
+- 📐 Determine solar elevation and azimuth angles
+- 🧭 Calculate solar azimuth (compass direction of the sun)
 - 🛰️ Parse NMEA GPS sentences (GGA, RMC) for location-based calculations
 - 🌍 Handle edge cases (polar night, midnight sun)
 - 🚀 High performance with zero allocations for core functions
@@ -103,6 +104,16 @@ elevation := solar.Elevation(latitude, longitude, when)
 fmt.Printf("Sun elevation: %.2f degrees\n", elevation)
 ```
 
+### Solar Azimuth Angle
+
+```go
+// Get sun's azimuth (compass direction) at a specific time
+// Azimuth: 0° = North, 90° = East, 180° = South, 270° = West
+when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
+azimuth := solar.Azimuth(latitude, longitude, when)
+fmt.Printf("Sun azimuth: %.2f degrees\n", azimuth)
+```
+
 ### Custom Elevation Times
 
 ```go
@@ -188,6 +199,7 @@ fmt.Printf("Golden hour: %s to %s\n", morning.Format("15:04"), evening.Format("1
 - `MeanSolarNoonFromNMEA()` - Calculate solar noon from GPS sentence
 - `ElevationFromNMEA()` - Calculate current solar elevation from GPS sentence
 - `TimeOfElevationFromNMEA()` - Calculate when sun reaches specific elevation
+- `AzimuthFromNMEA()` - Calculate solar azimuth (compass direction) from GPS sentence
 
 ### Using Generic Helpers
 

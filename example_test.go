@@ -195,3 +195,19 @@ func ExampleRadiansToDegrees() {
 	// Output:
 	// 180.0
 }
+
+// ExampleAzimuth demonstrates calculating the solar azimuth angle.
+// The azimuth is the sun's compass direction measured clockwise from north.
+func ExampleAzimuth() {
+	// Toronto coordinates
+	latitude := 43.65
+	longitude := -79.38
+
+	// Calculate azimuth for January 1, 2000 at 5:00 PM UTC (noon local time)
+	when := time.Date(2000, time.January, 1, 17, 0, 0, 0, time.UTC)
+	azimuth := solar.Azimuth(latitude, longitude, when)
+
+	fmt.Printf("Azimuth: %.1f degrees (South)\n", azimuth)
+	// Output:
+	// Azimuth: 174.8 degrees (South)
+}
