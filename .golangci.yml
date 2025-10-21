@@ -1,27 +1,54 @@
 # golangci-lint configuration (v2)
 # For more information: https://golangci-lint.run/
-
 version: "2"
 
 # Linters to enable
 linters:
   enable:
-    - errcheck      # Check for unchecked errors
-    - govet         # Vet examines Go source code
-    - ineffassign   # Detect ineffectual assignments
-    - staticcheck   # Static analysis
-    - unused        # Check for unused code
-    - misspell      # Find commonly misspelled words
-    - gocritic      # Comprehensive Go linter
-    - revive        # Fast, configurable, extensible linter
-    - gosec         # Security-focused linter
-    - bodyclose     # Check HTTP response body closed
-    - unconvert     # Remove unnecessary type conversions
-    - unparam       # Find unused function parameters
-    - prealloc      # Find slice declarations that could be preallocated
-    - nilerr        # Find code that returns nil even if error is not nil
+    - errcheck # Check for unchecked errors
+    - govet # Vet examines Go source code
+    - ineffassign # Detect ineffectual assignments
+    - staticcheck # Static analysis
+    - unused # Check for unused code
+    - misspell # Find commonly misspelled words
+    - gocritic # Comprehensive Go linter
+    - revive # Fast, configurable, extensible linter
+    - gosec # Security-focused linter
+    - bodyclose # Check HTTP response body closed
+    - unconvert # Remove unnecessary type conversions
+    - unparam # Find unused function parameters
+    - prealloc # Find slice declarations that could be preallocated
+    - nilerr # Find code that returns nil even if error is not nil
+    # Modern Go syntax linters
+    - ireturn # Accept interfaces, return concrete types (supports generics)
+    # - intrange # Find places where for loops could use integer ranges (Go 1.22+) // Uncomment when Go 1.22+ is used
+    # - copyloopvar # Detect places where loop variables are copied (Go 1.22+) // Uncomment when Go 1.22+ is used
+    - asasalint # Check for passing []any as any in variadic functions
+
+# Linter-specific settings
+  settings:
+    ireturn:
+      # Allow common interface types while encouraging concrete returns
+      allow:
+        - anon # Anonymous interfaces
+        - error # Error interface
+        - empty # Empty interface (interface{})
+        - stdlib # Standard library interfaces
+        - generic # Generic interfaces (Go 1.18+)
 
 # Formatters to enable
 formatters:
   enable:
-    - goimports     # Check import formatting and organization
+    - gofmt # Format code and apply rewrite rules
+    - goimports # Check import formatting and organization
+# Linter-specific formatter settings
+  settings:
+    gofmt:
+      # Apply rewrite rules to modernize Go syntax
+      rewrite-rules:
+        - pattern: 'interface{}'
+          replacement: 'any'
+    goimports:
+      # Group imports with local packages separate from stdlib and external
+      local-prefixes:
+        - github.com/mstephenholl/go-solar
