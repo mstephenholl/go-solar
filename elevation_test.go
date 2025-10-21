@@ -114,6 +114,7 @@ func TestElevation(t *testing.T) {
 		}
 	}
 }
+
 // Benchmark for the Elevation function
 func BenchmarkElevation(b *testing.B) {
 	latitude := 40.7128

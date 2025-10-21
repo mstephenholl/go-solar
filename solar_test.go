@@ -55,6 +55,7 @@ func TestSunriseSunset(t *testing.T) {
 		}
 	}
 }
+
 // Benchmark for the Sunrise function
 func BenchmarkSunrise(b *testing.B) {
 	latitude := 43.65

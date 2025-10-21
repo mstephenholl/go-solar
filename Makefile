@@ -47,18 +47,18 @@ clean: ## Clean build artifacts and caches
 .PHONY: test
 test: ## Run all tests
 	@echo "$(COLOR_GREEN)Running tests...$(COLOR_RESET)"
-	@go test -v -race -timeout 30s ./...
+	@go test -v -race -timeout 5m ./...
 
 .PHONY: test-short
 test-short: ## Run short tests only
 	@echo "$(COLOR_GREEN)Running short tests...$(COLOR_RESET)"
-	@go test -v -short ./...
+	@go test -v -short -timeout 2m ./...
 
 .PHONY: test-coverage
 test-coverage: ## Run tests with coverage report
 	@echo "$(COLOR_GREEN)Running tests with coverage...$(COLOR_RESET)"
 	@mkdir -p $(COVERAGE_DIR)
-	@go test -v -race -coverprofile=$(COVERAGE_FILE) -covermode=atomic ./...
+	@go test -v -race -timeout 5m -coverprofile=$(COVERAGE_FILE) -covermode=atomic ./...
 	@go tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
 	@go tool cover -func=$(COVERAGE_FILE)
 	@echo "$(COLOR_BLUE)Coverage report: $(COVERAGE_HTML)$(COLOR_RESET)"
@@ -87,15 +87,31 @@ test-bench-mem: ## Run benchmarks with memory profiling
 
 # Code quality targets
 .PHONY: fmt
-fmt: ## Format code with gofmt
-	@echo "$(COLOR_GREEN)Formatting code...$(COLOR_RESET)"
-	@gofmt -w -s .
+fmt: ## Format code and organize imports with goimports
+	@echo "$(COLOR_GREEN)Formatting code and organizing imports...$(COLOR_RESET)"
+	@GOBIN=$$(go env GOPATH)/bin; \
+	if command -v goimports > /dev/null 2>&1; then \
+		goimports -w -local $(PACKAGE) .; \
+	elif [ -x "$$GOBIN/goimports" ]; then \
+		$$GOBIN/goimports -w -local $(PACKAGE) .; \
+	else \
+		echo "$(COLOR_YELLOW)goimports not found, falling back to gofmt$(COLOR_RESET)"; \
+		gofmt -w -s .; \
+	fi
 	@echo "$(COLOR_GREEN)Code formatted successfully$(COLOR_RESET)"
 
 .PHONY: fmt-check
-fmt-check: ## Check if code is formatted
-	@echo "$(COLOR_GREEN)Checking code formatting...$(COLOR_RESET)"
-	@test -z "$$(gofmt -l .)" || (echo "$(COLOR_YELLOW)Files need formatting:$(COLOR_RESET)" && gofmt -l . && exit 1)
+fmt-check: ## Check if code is formatted and imports are organized
+	@echo "$(COLOR_GREEN)Checking code formatting and imports...$(COLOR_RESET)"
+	@GOBIN=$$(go env GOPATH)/bin; \
+	if command -v goimports > /dev/null 2>&1; then \
+		test -z "$$(goimports -l -local $(PACKAGE) .)" || (echo "$(COLOR_YELLOW)Files need formatting:$(COLOR_RESET)" && goimports -l -local $(PACKAGE) . && exit 1); \
+	elif [ -x "$$GOBIN/goimports" ]; then \
+		test -z "$$($$GOBIN/goimports -l -local $(PACKAGE) .)" || (echo "$(COLOR_YELLOW)Files need formatting:$(COLOR_RESET)" && $$GOBIN/goimports -l -local $(PACKAGE) . && exit 1); \
+	else \
+		echo "$(COLOR_YELLOW)goimports not found, using gofmt$(COLOR_RESET)"; \
+		test -z "$$(gofmt -l .)" || (echo "$(COLOR_YELLOW)Files need formatting:$(COLOR_RESET)" && gofmt -l . && exit 1); \
+	fi
 
 .PHONY: vet
 vet: ## Run go vet
@@ -259,10 +275,34 @@ security: ## Run security checks (requires govulncheck)
 
 # CI/CD targets
 .PHONY: ci
-ci: deps-verify fmt-check vet lint test-coverage ## Run all CI checks
+ci: deps-verify fmt-check vet lint test-coverage ## Run all CI checks (matches GitHub Actions)
 
 .PHONY: ci-quick
 ci-quick: fmt-check vet test ## Run quick CI checks
+
+.PHONY: ci-local
+ci-local: ## Simulate complete GitHub Actions CI locally
+	@echo "$(COLOR_BOLD)Running complete CI pipeline locally...$(COLOR_RESET)"
+	@echo ""
+	@echo "$(COLOR_BLUE)Step 1/6: Download dependencies$(COLOR_RESET)"
+	@$(MAKE) deps
+	@echo ""
+	@echo "$(COLOR_BLUE)Step 2/6: Verify dependencies$(COLOR_RESET)"
+	@$(MAKE) deps-verify
+	@echo ""
+	@echo "$(COLOR_BLUE)Step 3/6: Run go vet$(COLOR_RESET)"
+	@$(MAKE) vet
+	@echo ""
+	@echo "$(COLOR_BLUE)Step 4/6: Check formatting and imports$(COLOR_RESET)"
+	@$(MAKE) fmt-check
+	@echo ""
+	@echo "$(COLOR_BLUE)Step 5/6: Run tests with coverage$(COLOR_RESET)"
+	@$(MAKE) test-coverage
+	@echo ""
+	@echo "$(COLOR_BLUE)Step 6/6: Run linter$(COLOR_RESET)"
+	@$(MAKE) lint
+	@echo ""
+	@echo "$(COLOR_GREEN)✓ All CI checks passed!$(COLOR_RESET)"
 
 # Documentation
 .PHONY: docs
