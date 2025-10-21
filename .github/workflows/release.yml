@@ -2,26 +2,24 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [ master ]
+  workflow_dispatch:  # Allow manual trigger
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   release:
-    name: Release with GoReleaser
+    name: Create Automated Release
     runs-on: ubuntu-latest
+    # Only run if CI passes
+    if: github.ref == 'refs/heads/master'
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0
-
-    - name: Fetch all tags
-      run: git fetch --force --tags
+        fetch-depth: 0  # Fetch all history for changelog generation
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -29,34 +27,237 @@ jobs:
         go-version: '1.23'
         cache: true
 
-    - name: Run tests before release
+    - name: Generate version tag
+      id: version
       run: |
-        go mod download
-        go mod verify
-        go test -v -race -coverprofile=coverage.out ./...
+        # Get current date in YYYY.MM.DD format (UTC)
+        DATE=$(date -u +"%Y.%m.%d")
 
-    - name: Generate coverage report
+        # Get first 3 characters of commit hash
+        COMMIT_SHORT=$(git rev-parse --short=3 HEAD)
+
+        # Combine to create version: YYYY.MM.DD.XXX
+        VERSION="${DATE}.${COMMIT_SHORT}"
+
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "date=${DATE}" >> $GITHUB_OUTPUT
+        echo "commit_short=${COMMIT_SHORT}" >> $GITHUB_OUTPUT
+        echo "Generated version: v${VERSION}"
+
+    - name: Check if tag exists
+      id: check_tag
       run: |
-        go tool cover -func=coverage.out > coverage.txt
-        echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
-        cat coverage.txt >> $GITHUB_STEP_SUMMARY
-        echo '```' >> $GITHUB_STEP_SUMMARY
+        if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "⚠️ Tag v${{ steps.version.outputs.version }} already exists, skipping release"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "✅ Tag v${{ steps.version.outputs.version }} does not exist, will create release"
+        fi
 
-    - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@v6
+    - name: Get previous tag
+      id: previous_tag
+      if: steps.check_tag.outputs.exists == 'false'
+      run: |
+        PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        if [ -z "$PREV_TAG" ]; then
+          echo "previous_tag=" >> $GITHUB_OUTPUT
+          echo "is_first_release=true" >> $GITHUB_OUTPUT
+          echo "📦 No previous tag found - this is the first release"
+        else
+          echo "previous_tag=${PREV_TAG}" >> $GITHUB_OUTPUT
+          echo "is_first_release=false" >> $GITHUB_OUTPUT
+          echo "📋 Previous tag: ${PREV_TAG}"
+        fi
+
+    - name: Generate changelog
+      id: changelog
+      if: steps.check_tag.outputs.exists == 'false'
+      run: |
+        echo "📝 Generating changelog..."
+
+        RELEASE_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        VERSION="v${{ steps.version.outputs.version }}"
+
+        if [ "${{ steps.previous_tag.outputs.is_first_release }}" = "true" ]; then
+          # First release - include all commits
+          COMMIT_RANGE=""
+          CHANGELOG_HEADER="Initial Release"
+          PREV_TAG_INFO=""
+        else
+          # Subsequent release - commits since last tag
+          PREV_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
+          COMMIT_RANGE="${PREV_TAG}..HEAD"
+          CHANGELOG_HEADER="Changes since ${PREV_TAG}"
+          PREV_TAG_INFO="**Previous Release:** ${PREV_TAG}"
+        fi
+
+        # Get all commits (categorized by conventional commit prefixes)
+        ALL_COMMITS=$(git log ${COMMIT_RANGE} --pretty=format:"%s (%h)" --no-merges)
+
+        # Categorize commits
+        FEATURES=$(echo "${ALL_COMMITS}" | grep -E "^feat(\(.*\))?:" || true)
+        FIXES=$(echo "${ALL_COMMITS}" | grep -E "^fix(\(.*\))?:" || true)
+        PERF=$(echo "${ALL_COMMITS}" | grep -E "^perf(\(.*\))?:" || true)
+        REFACTOR=$(echo "${ALL_COMMITS}" | grep -E "^refactor(\(.*\))?:" || true)
+        DOCS=$(echo "${ALL_COMMITS}" | grep -E "^docs(\(.*\))?:" || true)
+        TESTS=$(echo "${ALL_COMMITS}" | grep -E "^test(\(.*\))?:" || true)
+        CHORE=$(echo "${ALL_COMMITS}" | grep -E "^chore(\(.*\))?:" || true)
+        ENHANCEMENT=$(echo "${ALL_COMMITS}" | grep -E "^enhancement(\(.*\))?:" || true)
+        OTHER=$(echo "${ALL_COMMITS}" | grep -vE "^(feat|fix|perf|refactor|docs|test|chore|enhancement)(\(.*\))?:" || true)
+
+        # Count total commits
+        COMMIT_COUNT=$(echo "${ALL_COMMITS}" | wc -l | tr -d ' ')
+
+        # Build categorized changelog
+        CHANGELOG_BODY=""
+
+        if [ -n "${FEATURES}" ]; then
+          CHANGELOG_BODY="${CHANGELOG_BODY}### ✨ Features\n\n${FEATURES}\n\n"
+        fi
+
+        if [ -n "${ENHANCEMENT}" ]; then
+          CHANGELOG_BODY="${CHANGELOG_BODY}### 🚀 Enhancements\n\n${ENHANCEMENT}\n\n"
+        fi
+
+        if [ -n "${FIXES}" ]; then
+          CHANGELOG_BODY="${CHANGELOG_BODY}### 🐛 Bug Fixes\n\n${FIXES}\n\n"
+        fi
+
+        if [ -n "${PERF}" ]; then
+          CHANGELOG_BODY="${CHANGELOG_BODY}### ⚡ Performance Improvements\n\n${PERF}\n\n"
+        fi
+
+        if [ -n "${REFACTOR}" ]; then
+          CHANGELOG_BODY="${CHANGELOG_BODY}### ♻️ Refactors\n\n${REFACTOR}\n\n"
+        fi
+
+        if [ -n "${DOCS}" ]; then
+          CHANGELOG_BODY="${CHANGELOG_BODY}### 📚 Documentation\n\n${DOCS}\n\n"
+        fi
+
+        if [ -n "${TESTS}" ]; then
+          CHANGELOG_BODY="${CHANGELOG_BODY}### 🧪 Tests\n\n${TESTS}\n\n"
+        fi
+
+        if [ -n "${CHORE}" ]; then
+          CHANGELOG_BODY="${CHANGELOG_BODY}### 🔧 Maintenance\n\n${CHORE}\n\n"
+        fi
+
+        if [ -n "${OTHER}" ]; then
+          CHANGELOG_BODY="${CHANGELOG_BODY}### 📝 Other Changes\n\n${OTHER}\n\n"
+        fi
+
+        # If no categorized commits, show all commits
+        if [ -z "${CHANGELOG_BODY}" ]; then
+          CHANGELOG_BODY="### Changes\n\n${ALL_COMMITS}\n\n"
+        fi
+
+        # Create changelog with proper formatting
+        cat > changelog.md << EOF
+        ## ${CHANGELOG_HEADER}
+
+        **Release Date:** ${RELEASE_DATE}
+        **Commit:** \`${{ github.sha }}\`
+        ${PREV_TAG_INFO}
+
+        ${CHANGELOG_BODY}
+
+        ---
+
+        ### 📦 Installation
+
+        \`\`\`bash
+        go get github.com/mstephenholl/go-solar@${VERSION}
+        \`\`\`
+
+        ### 📖 Documentation
+
+        - [Package Documentation](https://pkg.go.dev/github.com/mstephenholl/go-solar@${VERSION})
+        - [GitHub Repository](https://github.com/mstephenholl/go-solar)
+        - [Full Changelog](https://github.com/mstephenholl/go-solar/compare/${{ steps.previous_tag.outputs.previous_tag }}...${VERSION})
+
+        ### ⚙️ Requirements
+
+        - Go 1.21 or later
+        EOF
+
+        echo "✅ Changelog generated successfully"
+        cat changelog.md
+
+    - name: Run tests
+      if: steps.check_tag.outputs.exists == 'false'
+      run: |
+        echo "🧪 Running tests..."
+        go test -v -race -timeout 5m -coverprofile=coverage.out -covermode=atomic ./...
+
+    - name: Run linter
+      if: steps.check_tag.outputs.exists == 'false'
+      uses: golangci/golangci-lint-action@v8
       with:
-        distribution: goreleaser
         version: latest
-        args: release --clean
+        args: --timeout=5m
+
+    - name: Build
+      if: steps.check_tag.outputs.exists == 'false'
+      run: |
+        echo "🔨 Building..."
+        go build -v ./...
+
+    - name: Create Git tag
+      if: steps.check_tag.outputs.exists == 'false'
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
+        git push origin "v${{ steps.version.outputs.version }}"
+        echo "🏷️ Tag v${{ steps.version.outputs.version }} created and pushed"
+
+    - name: Create GitHub Release
+      if: steps.check_tag.outputs.exists == 'false'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
+        body_path: changelog.md
+        draft: false
+        prerelease: false
+        generate_release_notes: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload coverage artifact
+      if: steps.check_tag.outputs.exists == 'false'
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-report
-        path: |
-          coverage.out
-          coverage.txt
+        name: coverage-report-v${{ steps.version.outputs.version }}
+        path: coverage.out
         retention-days: 30
+
+    - name: Summary
+      if: steps.check_tag.outputs.exists == 'false'
+      run: |
+        echo "## ✅ Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Release Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version:** v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Date:** ${{ steps.version.outputs.date }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit:** ${{ steps.version.outputs.commit_short }} (${{ github.sha }})" >> $GITHUB_STEP_SUMMARY
+        echo "- **Previous Tag:** ${{ steps.previous_tag.outputs.previous_tag || 'None (first release)' }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Installation" >> $GITHUB_STEP_SUMMARY
+        echo '```bash' >> $GITHUB_STEP_SUMMARY
+        echo "go get github.com/mstephenholl/go-solar@v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Links" >> $GITHUB_STEP_SUMMARY
+        echo "- [View Release](https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }})" >> $GITHUB_STEP_SUMMARY
+        echo "- [Documentation](https://pkg.go.dev/github.com/mstephenholl/go-solar@v${{ steps.version.outputs.version }})" >> $GITHUB_STEP_SUMMARY
+
+    - name: Skip message
+      if: steps.check_tag.outputs.exists == 'true'
+      run: |
+        echo "## ℹ️ Release Skipped" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Tag v${{ steps.version.outputs.version }} already exists for this commit." >> $GITHUB_STEP_SUMMARY
+        echo "No new release was created." >> $GITHUB_STEP_SUMMARY
