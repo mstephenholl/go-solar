@@ -127,59 +127,89 @@ jobs:
         # Count total commits
         COMMIT_COUNT=$(echo "${ALL_COMMITS}" | wc -l | tr -d ' ')
 
-        # Build categorized changelog
-        CHANGELOG_BODY=""
+        # Build categorized changelog - write directly to file for proper newline handling
+        cat > changelog.md << 'CHANGELOG_START'
+        ## CHANGELOG_HEADER_PLACEHOLDER
 
+        **Release Date:** RELEASE_DATE_PLACEHOLDER
+        **Commit:** `COMMIT_SHA_PLACEHOLDER`
+        PREV_TAG_INFO_PLACEHOLDER
+
+        CHANGELOG_START
+
+        # Append categorized commits
         if [ -n "${FEATURES}" ]; then
-          CHANGELOG_BODY="${CHANGELOG_BODY}### ✨ Features\n\n${FEATURES}\n\n"
+          echo "### ✨ Features" >> changelog.md
+          echo "" >> changelog.md
+          echo "${FEATURES}" >> changelog.md
+          echo "" >> changelog.md
         fi
 
         if [ -n "${ENHANCEMENT}" ]; then
-          CHANGELOG_BODY="${CHANGELOG_BODY}### 🚀 Enhancements\n\n${ENHANCEMENT}\n\n"
+          echo "### 🚀 Enhancements" >> changelog.md
+          echo "" >> changelog.md
+          echo "${ENHANCEMENT}" >> changelog.md
+          echo "" >> changelog.md
         fi
 
         if [ -n "${FIXES}" ]; then
-          CHANGELOG_BODY="${CHANGELOG_BODY}### 🐛 Bug Fixes\n\n${FIXES}\n\n"
+          echo "### 🐛 Bug Fixes" >> changelog.md
+          echo "" >> changelog.md
+          echo "${FIXES}" >> changelog.md
+          echo "" >> changelog.md
         fi
 
         if [ -n "${PERF}" ]; then
-          CHANGELOG_BODY="${CHANGELOG_BODY}### ⚡ Performance Improvements\n\n${PERF}\n\n"
+          echo "### ⚡ Performance Improvements" >> changelog.md
+          echo "" >> changelog.md
+          echo "${PERF}" >> changelog.md
+          echo "" >> changelog.md
         fi
 
         if [ -n "${REFACTOR}" ]; then
-          CHANGELOG_BODY="${CHANGELOG_BODY}### ♻️ Refactors\n\n${REFACTOR}\n\n"
+          echo "### ♻️ Refactors" >> changelog.md
+          echo "" >> changelog.md
+          echo "${REFACTOR}" >> changelog.md
+          echo "" >> changelog.md
         fi
 
         if [ -n "${DOCS}" ]; then
-          CHANGELOG_BODY="${CHANGELOG_BODY}### 📚 Documentation\n\n${DOCS}\n\n"
+          echo "### 📚 Documentation" >> changelog.md
+          echo "" >> changelog.md
+          echo "${DOCS}" >> changelog.md
+          echo "" >> changelog.md
         fi
 
         if [ -n "${TESTS}" ]; then
-          CHANGELOG_BODY="${CHANGELOG_BODY}### 🧪 Tests\n\n${TESTS}\n\n"
+          echo "### 🧪 Tests" >> changelog.md
+          echo "" >> changelog.md
+          echo "${TESTS}" >> changelog.md
+          echo "" >> changelog.md
         fi
 
         if [ -n "${CHORE}" ]; then
-          CHANGELOG_BODY="${CHANGELOG_BODY}### 🔧 Maintenance\n\n${CHORE}\n\n"
+          echo "### 🔧 Maintenance" >> changelog.md
+          echo "" >> changelog.md
+          echo "${CHORE}" >> changelog.md
+          echo "" >> changelog.md
         fi
 
         if [ -n "${OTHER}" ]; then
-          CHANGELOG_BODY="${CHANGELOG_BODY}### 📝 Other Changes\n\n${OTHER}\n\n"
+          echo "### 📝 Other Changes" >> changelog.md
+          echo "" >> changelog.md
+          echo "${OTHER}" >> changelog.md
+          echo "" >> changelog.md
         fi
 
-        # If no categorized commits, show all commits
-        if [ -z "${CHANGELOG_BODY}" ]; then
-          CHANGELOG_BODY="### Changes\n\n${ALL_COMMITS}\n\n"
-        fi
+        # Replace placeholders
+        sed -i.bak "s/CHANGELOG_HEADER_PLACEHOLDER/${CHANGELOG_HEADER}/" changelog.md
+        sed -i.bak "s/RELEASE_DATE_PLACEHOLDER/${RELEASE_DATE}/" changelog.md
+        sed -i.bak "s/COMMIT_SHA_PLACEHOLDER/${{ github.sha }}/" changelog.md
+        sed -i.bak "s/PREV_TAG_INFO_PLACEHOLDER/${PREV_TAG_INFO}/" changelog.md
+        rm changelog.md.bak
 
-        # Create changelog with proper formatting
-        cat > changelog.md << EOF
-        ## ${CHANGELOG_HEADER}
-
-        **Release Date:** ${RELEASE_DATE}
-        **Commit:** \`${{ github.sha }}\`
-        ${PREV_TAG_INFO}
-
-        ${CHANGELOG_BODY}
+        # Continue with rest of changelog
+        cat >> changelog.md << EOF
 
         ---
 
