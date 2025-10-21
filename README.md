@@ -211,6 +211,48 @@ BenchmarkMin-11          1000000000   0.25 ns/op   0 B/op   0 allocs/op
 BenchmarkMax-11          1000000000   0.25 ns/op   0 B/op   0 allocs/op
 ```
 
+## 🚀 Releases
+
+This project uses **automated releases** with date-based semantic versioning.
+
+### Version Format
+
+Releases follow the pattern: `YYYY.MM.DD.XXX`
+
+- `YYYY.MM.DD` - UTC date of the release
+- `XXX` - First 3 characters of the commit hash
+
+**Example:** `v2025.10.21.a1b` - Released on October 21, 2025, from commit starting with `a1b`
+
+### Automated Release Process
+
+Every successful push to the `master` branch automatically:
+
+1. ✅ Runs full test suite
+2. ✅ Runs linter checks
+3. ✅ Builds the package
+4. 🏷️ Creates a git tag with version
+5. 📝 Generates changelog from commits
+6. 🎉 Creates GitHub release with notes
+
+### Changelog
+
+Each release includes:
+- All commits since the previous release
+- Installation instructions
+- Link to documentation
+- Coverage report artifact
+
+### Installing a Specific Version
+
+```bash
+# Latest release
+go get github.com/mstephenholl/go-solar
+
+# Specific version
+go get github.com/mstephenholl/go-solar@v2025.10.21.a1b
+```
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
