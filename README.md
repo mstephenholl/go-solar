@@ -14,8 +14,9 @@ A modern, well-tested Go package for calculating sunrise, sunset, and solar elev
 
 - 🌅 Calculate sunrise and sunset times for any location
 - 📐 Determine solar elevation angles
+- 🛰️ Parse NMEA GPS sentences (GGA, RMC) for location-based calculations
 - 🌍 Handle edge cases (polar night, midnight sun)
-- 🚀 High performance with zero allocations
+- 🚀 High performance with zero allocations for core functions
 - ✅ 100% test coverage on production code
 - 🔧 Generic helper functions (Go 1.18+)
 - 📚 Comprehensive documentation and examples
@@ -112,6 +113,41 @@ morning, evening := solar.TimeOfElevation(
     2024, time.June, 21,
 )
 ```
+
+### Working with NMEA GPS Sentences
+
+Calculate sunrise and sunset directly from NMEA 0183 GPS sentences (GGA or RMC):
+
+```go
+// Using RMC sentence (includes date)
+nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*71"
+sunrise, err := solar.SunriseFromNMEA(nmea, 0, 0, 0)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Sunrise: %s\n", sunrise.Format("15:04 MST"))
+
+// Using GGA sentence (requires external date)
+nmea = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*5C"
+sunset, err := solar.SunsetFromNMEA(nmea, 2024, time.June, 21)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Sunset: %s\n", sunset.Format("15:04 MST"))
+
+// Get both sunrise and sunset from NMEA
+sunrise, sunset, err := solar.SunriseSunsetFromNMEA(nmea, 2024, time.June, 21)
+```
+
+**Supported NMEA sentence types:**
+- **RMC** (Recommended Minimum): Includes date, no external date needed
+- **GGA** (GPS Fix Data): Requires external date parameters
+
+**Features:**
+- Automatic checksum validation
+- Supports both hemispheres (N/S, E/W)
+- Handles 2-digit year conversion (00-49 → 2000-2049, 50-99 → 1950-1999)
+- Detailed error messages for debugging
 
 ### Using Generic Helpers
 
