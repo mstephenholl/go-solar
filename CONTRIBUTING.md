@@ -210,24 +210,87 @@ This runs:
 
 ## Submitting Changes
 
+### Pre-PR Validation
+
+Before submitting a PR, validate your changes locally using make commands:
+
+#### Quick Validation (Recommended)
+
+```bash
+make ci-quick
+```
+
+This runs:
+- Code formatting check
+- `go vet`
+- Tests
+
+#### Full CI Simulation
+
+```bash
+make ci-local
+```
+
+This simulates the complete GitHub Actions CI pipeline:
+1. Downloads dependencies
+2. Verifies dependencies
+3. Runs `go vet`
+4. Checks code formatting with `goimports`
+5. Runs tests with coverage
+6. Runs full linter suite
+
+**✅ If `make ci-local` passes, your PR will pass CI!**
+
+#### Individual Checks
+
+If you need to run specific checks:
+
+```bash
+# Format code
+make fmt
+
+# Check formatting (without modifying files)
+make fmt-check
+
+# Run tests
+make test
+
+# Run tests with coverage report
+make coverage
+
+# Run linter
+make lint
+
+# Run security checks
+make security
+
+# Run benchmarks
+make test-bench
+```
+
 ### Pull Request Process
 
-1. Update your branch with the latest upstream:
+1. **Validate locally:**
+   ```bash
+   make ci-local
+   ```
+
+2. **Update your branch with the latest upstream:**
    ```bash
    git fetch upstream
    git rebase upstream/master
    ```
 
-2. Push your changes:
+3. **Push your changes:**
    ```bash
    git push origin feature/your-feature-name
    ```
 
-3. Create a Pull Request on GitHub
+4. **Create a Pull Request on GitHub**
 
-4. Ensure all CI checks pass
+5. **Ensure all CI checks pass** (they should if `make ci-local` passed!)
 
-5. Wait for review and address feedback
+6. **Wait for review and address feedback**
 
 ### Pull Request Guidelines
 
@@ -263,23 +326,54 @@ Describe the tests you ran and how to reproduce
 
 ## Release Process
 
-Releases are automated using GoReleaser:
+Releases are **fully automated** - you don't need to create tags or manage versions!
 
-1. Update version in relevant files
-2. Create and push a new tag:
-   ```bash
-   git tag -a v1.2.3 -m "Release v1.2.3"
-   git push origin v1.2.3
-   ```
-3. GitHub Actions will automatically create a release
+### How It Works
+
+When your PR is merged to `master`:
+
+1. ✅ CI runs full test suite
+2. ✅ Linter validates code quality
+3. ✅ Build verifies the package compiles
+4. 🏷️ GitHub Actions automatically creates a version tag
+5. 📝 Changelog is generated from commit messages
+6. 🎉 GitHub release is created with notes
+
+**You don't need to do anything!** Just merge to master and the release happens automatically.
 
 ### Versioning
 
-We follow [Semantic Versioning](https://semver.org/):
+We use **[Calendar Versioning (CalVer)](https://calver.org/)**:
 
-- **MAJOR**: Incompatible API changes
-- **MINOR**: New functionality (backward compatible)
-- **PATCH**: Bug fixes (backward compatible)
+**Format:** `YYYY.MM.MICRO`
+
+- `YYYY` - Full year (e.g., 2025)
+- `MM` - Zero-padded month (01-12)
+- `MICRO` - Incrementing number for releases within the same month (0, 1, 2, ...)
+
+**Examples:**
+- `v2025.10.0` - First release in October 2025
+- `v2025.10.1` - Second release in October 2025
+- `v2025.11.0` - First release in November 2025
+
+**Benefits:**
+- ✅ Chronologically sortable and human-readable
+- ✅ Clear release timing (same format as Ubuntu)
+- ✅ Handles multiple releases per month properly
+- ✅ No manual version management
+- ✅ Industry-standard CalVer format
+
+### Changelog Generation
+
+Your commit messages become release notes! Use [Conventional Commits](https://www.conventionalcommits.org/) for nice categorization:
+
+- `feat:` → ✨ Features
+- `fix:` → 🐛 Bug Fixes
+- `perf:` → ⚡ Performance Improvements
+- `refactor:` → ♻️ Refactors
+- `docs:` → 📚 Documentation
+- `test:` → 🧪 Tests
+- `chore:` → 🔧 Maintenance
 
 ## Questions?
 

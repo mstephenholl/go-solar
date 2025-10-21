@@ -30,19 +30,35 @@ jobs:
     - name: Generate version tag
       id: version
       run: |
-        # Get current date in YYYY.MM.DD format (UTC)
-        DATE=$(date -u +"%Y.%m.%d")
+        # CalVer format: YYYY.MM.MICRO
+        # Get current year and month (UTC)
+        YEAR=$(date -u +"%Y")
+        MONTH=$(date -u +"%m")
 
-        # Get first 3 characters of commit hash
-        COMMIT_SHORT=$(git rev-parse --short=3 HEAD)
+        # Find existing tags for this year and month
+        YEAR_MONTH="${YEAR}.${MONTH}"
 
-        # Combine to create version: YYYY.MM.DD.XXX
-        VERSION="${DATE}.${COMMIT_SHORT}"
+        # Get all tags matching YYYY.MM.* pattern and extract MICRO versions
+        EXISTING_TAGS=$(git tag -l "v${YEAR_MONTH}.*" | sed "s/^v${YEAR_MONTH}\.//" | sort -n || echo "")
+
+        # Find the highest MICRO version, default to -1 if none exist
+        if [ -z "$EXISTING_TAGS" ]; then
+          LAST_MICRO=-1
+        else
+          LAST_MICRO=$(echo "$EXISTING_TAGS" | tail -n 1)
+        fi
+
+        # Increment MICRO version
+        MICRO=$((LAST_MICRO + 1))
+
+        # Create CalVer version: YYYY.MM.MICRO
+        VERSION="${YEAR}.${MONTH}.${MICRO}"
 
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        echo "date=${DATE}" >> $GITHUB_OUTPUT
-        echo "commit_short=${COMMIT_SHORT}" >> $GITHUB_OUTPUT
-        echo "Generated version: v${VERSION}"
+        echo "year=${YEAR}" >> $GITHUB_OUTPUT
+        echo "month=${MONTH}" >> $GITHUB_OUTPUT
+        echo "micro=${MICRO}" >> $GITHUB_OUTPUT
+        echo "Generated CalVer version: v${VERSION}"
 
     - name: Check if tag exists
       id: check_tag
@@ -240,9 +256,11 @@ jobs:
         echo "## ✅ Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Release Details" >> $GITHUB_STEP_SUMMARY
-        echo "- **Version:** v${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Date:** ${{ steps.version.outputs.date }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Commit:** ${{ steps.version.outputs.commit_short }} (${{ github.sha }})" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version:** v${{ steps.version.outputs.version }} (CalVer: YYYY.MM.MICRO)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Year:** ${{ steps.version.outputs.year }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Month:** ${{ steps.version.outputs.month }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Micro:** ${{ steps.version.outputs.micro }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Previous Tag:** ${{ steps.previous_tag.outputs.previous_tag || 'None (first release)' }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Installation" >> $GITHUB_STEP_SUMMARY

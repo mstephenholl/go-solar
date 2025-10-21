@@ -213,16 +213,22 @@ BenchmarkMax-11          1000000000   0.25 ns/op   0 B/op   0 allocs/op
 
 ## 🚀 Releases
 
-This project uses **automated releases** with date-based semantic versioning.
+This project uses **automated releases** with [Calendar Versioning (CalVer)](https://calver.org/).
 
 ### Version Format
 
-Releases follow the pattern: `YYYY.MM.DD.XXX`
+Releases follow the **CalVer** pattern: `YYYY.MM.MICRO`
 
-- `YYYY.MM.DD` - UTC date of the release
-- `XXX` - First 3 characters of the commit hash
+- `YYYY` - Full year (e.g., 2025)
+- `MM` - Zero-padded month (01-12)
+- `MICRO` - Incrementing number for releases within the same month (0, 1, 2, ...)
 
-**Example:** `v2025.10.21.a1b` - Released on October 21, 2025, from commit starting with `a1b`
+**Examples:**
+- `v2025.10.0` - First release in October 2025
+- `v2025.10.1` - Second release in October 2025
+- `v2025.11.0` - First release in November 2025
+
+**Why CalVer?** This format provides clear, chronological versioning that makes it easy to understand when a release was created. Similar to Ubuntu's versioning scheme (e.g., 22.04, 24.04).
 
 ### Automated Release Process
 
@@ -249,8 +255,8 @@ Each release includes:
 # Latest release
 go get github.com/mstephenholl/go-solar
 
-# Specific version
-go get github.com/mstephenholl/go-solar@v2025.10.21.a1b
+# Specific version (CalVer format)
+go get github.com/mstephenholl/go-solar@v2025.10.0
 ```
 
 ## 🤝 Contributing
