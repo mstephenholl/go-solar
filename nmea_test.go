@@ -835,14 +835,14 @@ func TestParseRMC_AdditionalEdgeCases(t *testing.T) {
 
 func TestParseNMEATime_AdditionalEdgeCases(t *testing.T) {
 	tests := []struct {
-		name       string
-		timeStr    string
-		year       int
-		month      time.Month
-		day        int
-		wantErr    bool
-		wantNano   int // Expected nanoseconds for successful parses
-		checkNano  bool
+		name      string
+		timeStr   string
+		year      int
+		month     time.Month
+		day       int
+		wantErr   bool
+		wantNano  int // Expected nanoseconds for successful parses
+		checkNano bool
 	}{
 		{
 			name:    "Invalid minute",
