@@ -1,4 +1,4 @@
-package sunrise
+package solar
 
 // ArgumentOfPerihelion calculates the argument of periapsis for the earth on
 // the given Julian day.

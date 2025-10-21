@@ -1,8 +1,8 @@
-package sunrise
+package solar
 
 import "testing"
 
-var dataSolarTransit = []struct {
+var dataTransit = []struct {
 	inSolarNoon         float64
 	inSolarAnomaly      float64
 	inEclipticLongitude float64
@@ -16,9 +16,9 @@ var dataSolarTransit = []struct {
 	{2453096.98611, 87.16704, 12.02474, 2453096.98859},
 }
 
-func TestSolarTransit(t *testing.T) {
-	for _, tt := range dataSolarTransit {
-		v := SolarTransit(tt.inSolarNoon, tt.inSolarAnomaly, tt.inEclipticLongitude)
+func TestTransit(t *testing.T) {
+	for _, tt := range dataTransit {
+		v := Transit(tt.inSolarNoon, tt.inSolarAnomaly, tt.inEclipticLongitude)
 		if Round(v, DefaultPlaces) != Round(tt.out, DefaultPlaces) {
 			t.Fatalf("%f != %f", v, tt.out)
 		}

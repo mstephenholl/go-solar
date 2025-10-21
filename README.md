@@ -43,33 +43,49 @@ import (
 )
 
 func main() {
-    // Calculate sunrise and sunset for Toronto on January 1, 2000
-    rise, set := sunrise.SunriseSunset(
-        43.65, -79.38,          // Toronto coordinates (lat, long)
-        2000, time.January, 1,  // Date
-    )
+    // Toronto coordinates
+    latitude := 43.65
+    longitude := -79.38
 
+    // Calculate sunrise for January 1, 2000
+    rise := solar.Sunrise(latitude, longitude, 2000, time.January, 1)
     fmt.Printf("Sunrise: %s\n", rise.Format("15:04:05 MST"))
-    fmt.Printf("Sunset:  %s\n", set.Format("15:04:05 MST"))
-    // Output:
-    // Sunrise: 12:51:00 UTC
-    // Sunset:  21:50:36 UTC
+    // Output: Sunrise: 12:51:00 UTC
+
+    // Calculate sunset for the same day
+    set := solar.Sunset(latitude, longitude, 2000, time.January, 1)
+    fmt.Printf("Sunset: %s\n", set.Format("15:04:05 MST"))
+    // Output: Sunset: 21:50:36 UTC
+
+    // Or get both at once
+    rise, set = solar.SunriseSunset(latitude, longitude, 2000, time.January, 1)
 }
 ```
 
 ## 📖 Usage Examples
 
-### Basic Sunrise/Sunset Calculation
+### Individual Sunrise or Sunset
 
 ```go
 import "github.com/mstephenholl/go-solar"
 
-// Calculate for any location and date
 latitude := 40.7128   // New York City
 longitude := -74.0060
-year, month, day := 2024, time.June, 21
 
-rise, set := sunrise.SunriseSunset(latitude, longitude, year, month, day)
+// Get just sunrise
+rise := solar.Sunrise(latitude, longitude, 2024, time.June, 21)
+fmt.Printf("Sunrise: %s\n", rise.Format("15:04 MST"))
+
+// Get just sunset
+set := solar.Sunset(latitude, longitude, 2024, time.June, 21)
+fmt.Printf("Sunset: %s\n", set.Format("15:04 MST"))
+```
+
+### Both Sunrise and Sunset
+
+```go
+// Calculate both at once (more efficient)
+rise, set := solar.SunriseSunset(latitude, longitude, 2024, time.June, 21)
 
 // Check for special cases (polar regions)
 if rise.IsZero() && set.IsZero() {
@@ -82,7 +98,7 @@ if rise.IsZero() && set.IsZero() {
 ```go
 // Get sun's elevation at a specific time
 when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
-elevation := sunrise.Elevation(latitude, longitude, when)
+elevation := solar.Elevation(latitude, longitude, when)
 fmt.Printf("Sun elevation: %.2f degrees\n", elevation)
 ```
 
@@ -90,7 +106,7 @@ fmt.Printf("Sun elevation: %.2f degrees\n", elevation)
 
 ```go
 // Find when sun reaches a specific elevation (e.g., golden hour at -6°)
-morning, evening := sunrise.TimeOfElevation(
+morning, evening := solar.TimeOfElevation(
     latitude, longitude,
     -6.0,  // Elevation angle in degrees
     2024, time.June, 21,
@@ -101,20 +117,20 @@ morning, evening := sunrise.TimeOfElevation(
 
 ```go
 // Generic absolute value - works with any signed type
-fmt.Println(sunrise.Abs(-42))      // int: 42
-fmt.Println(sunrise.Abs(-3.14))    // float64: 3.14
+fmt.Println(solar.Abs(-42))      // int: 42
+fmt.Println(solar.Abs(-3.14))    // float64: 3.14
 
 // Floating-point comparison with tolerance
-if sunrise.AlmostEqual(1.0, 1.00001, 0.001) {
+if solar.AlmostEqual(1.0, 1.00001, 0.001) {
     fmt.Println("Values are approximately equal")
 }
 
 // Min/Max for any numeric type
-fmt.Println(sunrise.Min(5, 10))        // 5
-fmt.Println(sunrise.Max(3.14, 2.71))   // 3.14
+fmt.Println(solar.Min(5, 10))        // 5
+fmt.Println(solar.Max(3.14, 2.71))   // 3.14
 
 // Clamp values to a range
-fmt.Println(sunrise.Clamp(15, 0, 10))  // 10
+fmt.Println(solar.Clamp(15, 0, 10))  // 10
 ```
 
 ## 🧪 Development

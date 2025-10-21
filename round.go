@@ -1,4 +1,4 @@
-package sunrise
+package solar
 
 import "math"
 

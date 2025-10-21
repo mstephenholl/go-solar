@@ -1,10 +1,10 @@
-package sunrise
+package solar
 
 import (
 	"testing"
 )
 
-var dataSolarMeanAnomaly = []struct {
+var dataMeanAnomaly = []struct {
 	in  float64
 	out float64
 }{
@@ -16,9 +16,9 @@ var dataSolarMeanAnomaly = []struct {
 	{2453096.98611, 87.16704},
 }
 
-func TestSolarMeanAnomaly(t *testing.T) {
-	for _, tt := range dataSolarMeanAnomaly {
-		v := SolarMeanAnomaly(tt.in)
+func TestMeanAnomaly(t *testing.T) {
+	for _, tt := range dataMeanAnomaly {
+		v := MeanAnomaly(tt.in)
 		if Round(v, DefaultPlaces) != Round(tt.out, DefaultPlaces) {
 			t.Fatalf("%f != %f", v, tt.out)
 		}
