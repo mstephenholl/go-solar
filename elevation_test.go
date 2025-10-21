@@ -7,7 +7,7 @@ import (
 
 // Sunrise is defined to be when the Sun is 50 arc minutes below the horizon.
 // This is due to atmospheric refraction and measuring the position of the top
-// rather than the centre of the Sun.
+// rather than the center of the Sun.
 // https://en.wikipedia.org/wiki/Sunrise#Angle
 var sunriseElevation = -50.0 / 60.0
 
@@ -26,13 +26,13 @@ var dataElevation = []struct {
 		0, 0, sunriseElevation,
 		1970, time.January, 1,
 		time.Date(1970, time.January, 1, 5, 59, 54, 0, time.UTC),
-		time.Date(1970, time.January, 1, 18, 07, 07, 0, time.UTC),
+		time.Date(1970, time.January, 1, 18, 0o7, 0o7, 0, time.UTC),
 	},
 	// 2000-01-01 - Toronto (43.65° N, 79.38° W)
 	{
 		43.65, -79.38, sunriseElevation,
 		2000, time.January, 1,
-		time.Date(2000, time.January, 1, 12, 51, 00, 0, time.UTC),
+		time.Date(2000, time.January, 1, 12, 51, 0o0, 0, time.UTC),
 		time.Date(2000, time.January, 1, 21, 50, 36, 0, time.UTC),
 	},
 	// 2004-04-01 - (52° N, 5° E)
@@ -100,7 +100,7 @@ func TestTimeOfElevation(t *testing.T) {
 
 func TestElevation(t *testing.T) {
 	for _, tt := range dataElevation {
-		if (tt.outFirst == time.Time{}) || (tt.outSecond == time.Time{}) {
+		if tt.outFirst.IsZero() || tt.outSecond.IsZero() {
 			continue // Not reversible from output
 		}
 

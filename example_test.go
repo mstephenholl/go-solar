@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mstephenholl/go-solar"
+	sunrise "github.com/mstephenholl/go-solar"
 )
 
 // ExampleSunriseSunset demonstrates basic sunrise and sunset calculation

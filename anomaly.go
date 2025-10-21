@@ -1,3 +1,6 @@
+// Package sunrise provides functions for calculating sunrise, sunset, and solar position
+// for any location on Earth. It uses astronomical algorithms to compute solar elevation
+// angles and times when the sun crosses specific elevation thresholds.
 package sunrise
 
 import (

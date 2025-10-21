@@ -75,9 +75,9 @@ func Max[T Numeric](a, b T) T {
 	return b
 }
 
-// Clamp restricts a value to be within a specified range [min, max].
-// If the value is less than min, it returns min.
-// If the value is greater than max, it returns max.
+// Clamp restricts a value to be within a specified range [minVal, maxVal].
+// If the value is less than minVal, it returns minVal.
+// If the value is greater than maxVal, it returns maxVal.
 // Otherwise, it returns the value unchanged.
 //
 // Example:
@@ -85,12 +85,12 @@ func Max[T Numeric](a, b T) T {
 //	Clamp(5, 0, 10)   // returns 5
 //	Clamp(-5, 0, 10)  // returns 0
 //	Clamp(15, 0, 10)  // returns 10
-func Clamp[T Numeric](value, min, max T) T {
-	if value < min {
-		return min
+func Clamp[T Numeric](value, minVal, maxVal T) T {
+	if value < minVal {
+		return minVal
 	}
-	if value > max {
-		return max
+	if value > maxVal {
+		return maxVal
 	}
 	return value
 }

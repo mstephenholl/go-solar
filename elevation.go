@@ -8,7 +8,7 @@ import (
 // TimeOfElevation calculates the times of day when the sun is at a given elevation
 // above the horizon on a given day at the specified location.
 // Returns time.Time{} if there sun does not reach the elevation
-func TimeOfElevation(latitude, longitude, elevation float64, year int, month time.Month, day int) (time.Time, time.Time) {
+func TimeOfElevation(latitude, longitude, elevation float64, year int, month time.Month, day int) (morning, evening time.Time) {
 	var (
 		d                 = MeanSolarNoon(longitude, year, month, day)
 		solarAnomaly      = SolarMeanAnomaly(d)
@@ -21,8 +21,8 @@ func TimeOfElevation(latitude, longitude, elevation float64, year int, month tim
 		denominator = math.Cos(latitude*Degree) * math.Cos(declination*Degree)
 		hourAngle   = math.Acos(numerator / denominator)
 		frac        = hourAngle / (2 * math.Pi)
-		morning     = solarTransit - frac
-		evening     = solarTransit + frac
+		morningJD   = solarTransit - frac
+		eveningJD   = solarTransit + frac
 	)
 
 	// Check for cases where the sun never reaches the given elevation.
@@ -30,7 +30,9 @@ func TimeOfElevation(latitude, longitude, elevation float64, year int, month tim
 		return time.Time{}, time.Time{}
 	}
 
-	return JulianDayToTime(morning), JulianDayToTime(evening)
+	morning = JulianDayToTime(morningJD)
+	evening = JulianDayToTime(eveningJD)
+	return morning, evening
 }
 
 // Elevation calculates the angle of the sun above the horizon at a given moment
