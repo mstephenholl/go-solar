@@ -39,11 +39,16 @@ Thank you for your interest in contributing to go-solar! This document provides 
 make install-tools
 ```
 
-This will install:
-- golangci-lint
-- staticcheck
-- goimports
-- govulncheck
+This will install (with interactive confirmation):
+- **golangci-lint** (v2.5.0) - Comprehensive linter suite (installed via binary for speed)
+- **staticcheck** - Static analysis tool
+- **goimports** - Import formatter and organizer
+- **govulncheck** - Vulnerability scanner
+
+To install without confirmation:
+```bash
+make install-tools-force
+```
 
 ### Verify Your Setup
 
@@ -51,7 +56,7 @@ This will install:
 make ci-quick
 ```
 
-This runs formatting checks, vet, and tests.
+This runs formatting checks, vet, and tests (fastest validation).
 
 ## Making Changes
 
@@ -104,17 +109,19 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 
 **Types:**
 - `feat`: New feature
+- `enhancement`: Improvement to existing feature
 - `fix`: Bug fix
+- `perf`: Performance improvements
+- `refactor`: Code refactoring
 - `docs`: Documentation changes
 - `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `perf`: Performance improvements
 - `test`: Adding or updating tests
 - `chore`: Maintenance tasks
 
 **Examples:**
 ```
 feat(elevation): add support for custom elevation angles
+enhancement(nmea): improve parsing performance by 30%
 fix(hourangle): correct polar night calculation
 docs(readme): update installation instructions
 test(sunrise): add edge case tests for polar regions
@@ -195,18 +202,82 @@ make lint
 make security
 ```
 
-### Pre-commit Checklist
+### Development Workflow Guide
 
-Before committing, ensure:
+We provide multiple make targets for different stages of development:
 
+| Target | Purpose | Modifies Files? | When to Use |
+|--------|---------|-----------------|-------------|
+| **`make ci-quick`** | Fast validation | ❌ No | Every 5-10 minutes during development |
+| **`make pre-commit`** | Auto-fix & validate | ✅ Yes (formats code) | Right before committing |
+| **`make ci`** | Complete checks | ❌ No | Automated validation, CI simulation |
+| **`make ci-local`** | Full CI simulation | ❌ No | Before creating PR, debugging CI failures |
+| **`make pre-release`** | Release validation | ❌ No | Before tagging releases |
+
+#### Detailed Comparison
+
+**`make ci-quick`** (⚡ Fastest)
+```bash
+make ci-quick
+```
+- Runs: `fmt-check` → `vet` → `test`
+- No linting, no coverage report
+- Use for quick iteration during development
+
+**`make pre-commit`** (🔧 Auto-fix)
 ```bash
 make pre-commit
 ```
+- Runs: `fmt` → `vet` → `test`
+- **Auto-formats your code** (modifies files)
+- Use right before `git commit` or as a git hook
+- Difference from `ci-quick`: Uses `fmt` instead of `fmt-check`
 
-This runs:
-- Code formatting
-- `go vet`
-- Tests
+**`make ci`** (✅ Complete)
+```bash
+make ci
+```
+- Runs: `deps-verify` → `fmt-check` → `vet` → `lint` → `test-coverage`
+- Comprehensive validation without modifying files
+- Fast, minimal output
+- Use in automated scripts or for quick complete validation
+
+**`make ci-local`** (📋 Verbose)
+```bash
+make ci-local
+```
+- Runs: `deps` → `deps-verify` → `vet` → `fmt-check` → `test-coverage` → `lint`
+- Shows step-by-step progress
+- Matches GitHub Actions CI workflow exactly
+- Use before creating PRs or when debugging CI failures
+
+**`make pre-release`** (🚀 Release-ready)
+```bash
+make pre-release
+```
+- Runs: `clean` → `ci` → `security`
+- Removes build artifacts, runs full CI, adds security scanning
+- Use before tagging releases or merging to master
+
+### Typical Development Cycle
+
+```bash
+# 1. While writing code (fast iteration)
+make ci-quick
+
+# 2. Before committing (auto-format and validate)
+make pre-commit
+
+# 3. Commit your changes
+git add .
+git commit -m "feat: add new feature"
+
+# 4. Before pushing (final validation)
+make ci-local
+
+# 5. Push to your fork
+git push origin feature/your-feature-name
+```
 
 ## Submitting Changes
 
@@ -376,6 +447,7 @@ We use **[Calendar Versioning (CalVer)](https://calver.org/)**:
 Your commit messages become release notes! Use [Conventional Commits](https://www.conventionalcommits.org/) for nice categorization:
 
 - `feat:` → ✨ Features
+- `enhancement:` → 🚀 Enhancements
 - `fix:` → 🐛 Bug Fixes
 - `perf:` → ⚡ Performance Improvements
 - `refactor:` → ♻️ Refactors

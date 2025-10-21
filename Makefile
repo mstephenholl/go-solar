@@ -155,10 +155,30 @@ deps-tidy: ## Tidy dependencies
 	@go mod tidy -v
 
 .PHONY: deps-upgrade
-deps-upgrade: ## Upgrade all dependencies
-	@echo "$(COLOR_GREEN)Upgrading dependencies...$(COLOR_RESET)"
+deps-upgrade: ## Upgrade all dependencies to latest minor/patch versions
+	@echo "$(COLOR_GREEN)Upgrading dependencies to latest compatible versions...$(COLOR_RESET)"
 	@go get -u ./...
 	@go mod tidy -v
+	@echo "$(COLOR_GREEN)✓ Dependencies upgraded$(COLOR_RESET)"
+
+.PHONY: deps-upgrade-patch
+deps-upgrade-patch: ## Upgrade all dependencies to latest patch versions only
+	@echo "$(COLOR_GREEN)Upgrading dependencies to latest patch versions...$(COLOR_RESET)"
+	@go get -u=patch ./...
+	@go mod tidy -v
+	@echo "$(COLOR_GREEN)✓ Dependencies upgraded to latest patches$(COLOR_RESET)"
+
+.PHONY: deps-upgrade-latest
+deps-upgrade-latest: ## Upgrade all dependencies to latest versions (including major)
+	@echo "$(COLOR_YELLOW)⚠ Warning: This will upgrade to latest versions including breaking changes$(COLOR_RESET)"
+	@echo "$(COLOR_YELLOW)Press Ctrl+C to cancel, or Enter to continue...$(COLOR_RESET)"
+	@read -r confirm
+	@echo "$(COLOR_GREEN)Upgrading all dependencies to absolute latest versions...$(COLOR_RESET)"
+	@go get -u -t ./...
+	@go get -u all
+	@go mod tidy -v
+	@echo "$(COLOR_GREEN)✓ All dependencies upgraded to latest$(COLOR_RESET)"
+	@echo "$(COLOR_YELLOW)⚠ Run 'make test' to verify compatibility$(COLOR_RESET)"
 
 # Tool installation
 .PHONY: check-tools
@@ -234,8 +254,8 @@ install-tools: ## Install missing development tools (interactive)
 	echo ""; \
 	echo "$(COLOR_GREEN)Installing development tools...$(COLOR_RESET)"; \
 	if ! command -v golangci-lint > /dev/null 2>&1 && ! [ -x "$$GOBIN/golangci-lint" ]; then \
-		echo "  Installing golangci-lint..."; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION); \
+		echo "  Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."; \
+		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$$GOBIN" $(GOLANGCI_LINT_VERSION); \
 	fi; \
 	if ! command -v staticcheck > /dev/null 2>&1 && ! [ -x "$$GOBIN/staticcheck" ]; then \
 		echo "  Installing staticcheck..."; \
@@ -257,7 +277,8 @@ install-tools: ## Install missing development tools (interactive)
 .PHONY: install-tools-force
 install-tools-force: ## Install all development tools without prompting
 	@echo "$(COLOR_GREEN)Installing all development tools (no confirmation)...$(COLOR_RESET)"
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	@GOBIN=$$(go env GOPATH)/bin; \
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$$GOBIN" $(GOLANGCI_LINT_VERSION)
 	@go install honnef.co/go/tools/cmd/staticcheck@latest
 	@go install golang.org/x/tools/cmd/goimports@latest
 	@go install golang.org/x/vuln/cmd/govulncheck@latest
@@ -274,14 +295,21 @@ security: ## Run security checks (requires govulncheck)
 	fi
 
 # CI/CD targets
+# Workflow guide:
+#   Development iteration:  make ci-quick        (fastest - format check, vet, test)
+#   Before commit:          make pre-commit      (auto-fix format, vet, test)
+#   Automated/hook check:   make ci              (complete check, minimal output)
+#   Before PR:              make ci-local        (verbose, matches GitHub Actions)
+#   Before release:         make pre-release     (clean build + full validation)
+
 .PHONY: ci
-ci: deps-verify fmt-check vet lint test-coverage ## Run all CI checks (matches GitHub Actions)
+ci: deps-verify fmt-check vet lint test-coverage ## Fast CI checks (minimal output)
 
 .PHONY: ci-quick
-ci-quick: fmt-check vet test ## Run quick CI checks
+ci-quick: fmt-check vet test ## Quick validation (format, vet, test only)
 
 .PHONY: ci-local
-ci-local: ## Simulate complete GitHub Actions CI locally
+ci-local: ## Complete CI simulation with progress output (matches GitHub Actions)
 	@echo "$(COLOR_BOLD)Running complete CI pipeline locally...$(COLOR_RESET)"
 	@echo ""
 	@echo "$(COLOR_BLUE)Step 1/6: Download dependencies$(COLOR_RESET)"
@@ -325,15 +353,14 @@ watch-test: ## Watch files and run tests on changes (requires entr)
 	@echo "$(COLOR_GREEN)Watching for changes...$(COLOR_RESET)"
 	@find . -name '*.go' | entr -c make test
 
-# Pre-commit hook
+# Developer workflow helpers
 .PHONY: pre-commit
-pre-commit: fmt vet test ## Run pre-commit checks
-	@echo "$(COLOR_GREEN)Pre-commit checks passed!$(COLOR_RESET)"
+pre-commit: fmt vet test ## Auto-format and validate before committing (modifies files)
+	@echo "$(COLOR_GREEN)✓ Pre-commit checks passed!$(COLOR_RESET)"
 
-# Release preparation
 .PHONY: pre-release
-pre-release: clean ci security ## Run all checks before release
-	@echo "$(COLOR_GREEN)Pre-release checks complete!$(COLOR_RESET)"
+pre-release: clean ci security ## Complete validation with clean build (for releases)
+	@echo "$(COLOR_GREEN)✓ Pre-release checks complete! Ready to tag release.$(COLOR_RESET)"
 
 # Default target
 .DEFAULT_GOAL := help
