@@ -19,7 +19,7 @@ func ExampleSunrise() {
 
 	fmt.Printf("Sunrise: %s\n", rise.Format("15:04:05 MST"))
 	// Output:
-	// Sunrise: 12:51:00 UTC
+	// Sunrise: 12:50:59 UTC
 }
 
 // ExampleSunset demonstrates calculating just the sunset time
@@ -34,7 +34,7 @@ func ExampleSunset() {
 
 	fmt.Printf("Sunset: %s\n", set.Format("15:04:05 MST"))
 	// Output:
-	// Sunset: 21:50:36 UTC
+	// Sunset: 21:50:37 UTC
 }
 
 // ExampleSunriseSunset demonstrates basic sunrise and sunset calculation
@@ -50,8 +50,8 @@ func ExampleSunriseSunset() {
 	fmt.Printf("Sunrise: %s\n", rise.Format("15:04:05 MST"))
 	fmt.Printf("Sunset: %s\n", set.Format("15:04:05 MST"))
 	// Output:
-	// Sunrise: 12:51:00 UTC
-	// Sunset: 21:50:36 UTC
+	// Sunrise: 12:50:59 UTC
+	// Sunset: 21:50:37 UTC
 }
 
 // ExampleSunriseSunset_polarNight demonstrates the case where the sun

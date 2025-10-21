@@ -52,10 +52,11 @@ const (
 	EquationOfTimeC2 = 0.0069
 
 	// SunriseCorrectionAngle is the correction angle for sunrise/sunset calculations.
-	// This is approximately -0.833° (-50 arc minutes), accounting for:
+	// This is precisely -0.833° (-50 arc minutes), accounting for:
 	// - Atmospheric refraction (34 arc minutes)
 	// - Sun's angular diameter (16 arc minutes)
-	SunriseCorrectionAngle = -0.01449
+	// Calculated as: -0.833 * (π/180) = -0.0145385927 radians
+	SunriseCorrectionAngle = -0.0145385927
 
 	// PerihelionBase is the argument of perihelion at J2000 epoch (in degrees).
 	// This is the angle from the vernal equinox to perihelion.
