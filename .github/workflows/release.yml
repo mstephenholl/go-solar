@@ -39,13 +39,15 @@ jobs:
         YEAR_MONTH="${YEAR}.${MONTH}"
 
         # Get all tags matching YYYY.MM.* pattern and extract MICRO versions
-        EXISTING_TAGS=$(git tag -l "v${YEAR_MONTH}.*" | sed "s/^v${YEAR_MONTH}\.//" | sort -n || echo "")
+        EXISTING_TAGS=$(git tag -l "v${YEAR_MONTH}.*" 2>/dev/null | sed "s/^v${YEAR_MONTH}\.//" | grep -E '^[0-9]+$' | sort -n)
 
         # Find the highest MICRO version, default to -1 if none exist
-        if [ -z "$EXISTING_TAGS" ]; then
+        if [ -z "$EXISTING_TAGS" ] || [ $(echo "$EXISTING_TAGS" | wc -l) -eq 0 ]; then
           LAST_MICRO=-1
+          echo "No existing tags found for ${YEAR_MONTH}, starting at 0"
         else
           LAST_MICRO=$(echo "$EXISTING_TAGS" | tail -n 1)
+          echo "Found existing tags, last MICRO version: ${LAST_MICRO}"
         fi
 
         # Increment MICRO version
