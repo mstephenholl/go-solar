@@ -149,6 +149,46 @@ sunrise, sunset, err := solar.SunriseSunsetFromNMEA(nmea, 2024, time.June, 21)
 - Handles 2-digit year conversion (00-49 → 2000-2049, 50-99 → 1950-1999)
 - Detailed error messages for debugging
 
+### Additional NMEA Functions
+
+All major solar calculation functions have NMEA-compatible versions:
+
+```go
+// Solar noon from NMEA
+nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*71"
+noon, err := solar.MeanSolarNoonFromNMEA(nmea, 0, 0, 0)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Solar noon: %s\n", noon.Format("15:04 MST"))
+
+// Solar elevation from NMEA
+elevation, err := solar.ElevationFromNMEA(nmea, 2024, time.June, 21)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Current elevation: %.2f degrees\n", elevation)
+
+// Time of specific elevation from NMEA
+morning, evening, err := solar.TimeOfElevationFromNMEA(
+    nmea,
+    -6.0,  // Golden hour elevation
+    2024, time.June, 21,
+)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Golden hour: %s to %s\n", morning.Format("15:04"), evening.Format("15:04"))
+```
+
+**Available NMEA functions:**
+- `SunriseFromNMEA()` - Calculate sunrise from GPS sentence
+- `SunsetFromNMEA()` - Calculate sunset from GPS sentence
+- `SunriseSunsetFromNMEA()` - Calculate both sunrise and sunset
+- `MeanSolarNoonFromNMEA()` - Calculate solar noon from GPS sentence
+- `ElevationFromNMEA()` - Calculate current solar elevation from GPS sentence
+- `TimeOfElevationFromNMEA()` - Calculate when sun reaches specific elevation
+
 ### Using Generic Helpers
 
 ```go
@@ -268,16 +308,6 @@ go get github.com/mstephenholl/go-solar@v2025.10.0
 ## 🤝 Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Quick Contribution Guide
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`make ci-quick`)
-5. Commit with conventional commits (`git commit -m 'feat: add amazing feature'`)
-6. Push to your fork (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
 
 ## 📝 License
 
