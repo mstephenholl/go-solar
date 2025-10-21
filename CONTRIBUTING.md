@@ -332,14 +332,22 @@ Releases are **fully automated** - you don't need to create tags or manage versi
 
 When your PR is merged to `master`:
 
-1. ✅ CI runs full test suite
-2. ✅ Linter validates code quality
-3. ✅ Build verifies the package compiles
-4. 🏷️ GitHub Actions automatically creates a version tag
-5. 📝 Changelog is generated from commit messages
-6. 🎉 GitHub release is created with notes
+**Phase 1: CI Quality Gates** (must all pass)
+1. ✅ Tests run across multiple OS platforms (Ubuntu, macOS, Windows)
+2. ✅ Tests run across multiple Go versions (1.21, 1.22, 1.23)
+3. ✅ Linter validates code quality (golangci-lint)
+4. ✅ Security scans run (gosec, govulncheck)
+5. ✅ Build verifies the package compiles
+6. ✅ Benchmarks execute successfully
 
-**You don't need to do anything!** Just merge to master and the release happens automatically.
+**Phase 2: Release Creation** (only if Phase 1 passes)
+7. 🏷️ GitHub Actions automatically creates a CalVer version tag
+8. 📝 Changelog is generated from commit messages
+9. 🎉 GitHub release is created with notes
+
+**Quality First:** The release workflow only triggers after all CI quality gates pass successfully. If any CI check fails, no release is created.
+
+**You don't need to do anything!** Just merge to master and the process is fully automated.
 
 ### Versioning
 

@@ -232,22 +232,28 @@ Releases follow the **CalVer** pattern: `YYYY.MM.MICRO`
 
 ### Automated Release Process
 
-Every successful push to the `master` branch automatically:
+Every successful push to the `master` branch automatically triggers:
 
-1. ✅ Runs full test suite
-2. ✅ Runs linter checks
-3. ✅ Builds the package
-4. 🏷️ Creates a git tag with version
-5. 📝 Generates changelog from commits
-6. 🎉 Creates GitHub release with notes
+1. **CI Quality Gates** (must pass before release):
+   - ✅ Runs full test suite across multiple OS and Go versions
+   - ✅ Runs linter checks (golangci-lint)
+   - ✅ Runs security scans (gosec, govulncheck)
+   - ✅ Builds the package
+   - ✅ Runs benchmarks
+
+2. **Release Creation** (only if CI passes):
+   - 🏷️ Creates a CalVer git tag (YYYY.MM.MICRO)
+   - 📝 Generates categorized changelog from commits
+   - 🎉 Creates GitHub release with notes
+
+**Quality First:** Releases are only created when all CI quality gates pass successfully.
 
 ### Changelog
 
 Each release includes:
-- All commits since the previous release
+- Categorized commits (Features, Enhancements, Bug Fixes, etc.)
 - Installation instructions
-- Link to documentation
-- Coverage report artifact
+- Links to documentation and full changelog
 
 ### Installing a Specific Version
 
