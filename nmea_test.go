@@ -621,3 +621,373 @@ func BenchmarkValidateChecksum(b *testing.B) {
 		_ = validateChecksum(sentence, "71")
 	}
 }
+
+// Additional coverage tests for edge cases
+
+func TestSunsetFromNMEA_Errors(t *testing.T) {
+	// Invalid NMEA should return error
+	_, err := SunsetFromNMEA("invalid", 2024, time.June, 21)
+	if err == nil {
+		t.Error("Expected error for invalid NMEA, got nil")
+	}
+}
+
+func TestSunriseSunsetFromNMEA_Errors(t *testing.T) {
+	// Invalid NMEA should return error
+	_, _, err := SunriseSunsetFromNMEA("invalid", 2024, time.June, 21)
+	if err == nil {
+		t.Error("Expected error for invalid NMEA, got nil")
+	}
+}
+
+func TestParseNMEA_AdditionalEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		nmea    string
+		year    int
+		month   time.Month
+		day     int
+		wantErr bool
+	}{
+		{
+			name:    "Sentence type too short",
+			nmea:    "$AB*00",
+			wantErr: true,
+		},
+		{
+			name:    "Empty sentence with checksum",
+			nmea:    "$*00",
+			wantErr: true,
+		},
+		{
+			name:    "Whitespace around NMEA (should succeed)",
+			nmea:    "  $GPGGA,123519,4339.192,N,07922.992,W,1,08,0.9,545.4,M,46.9,M,,*5C  ",
+			year:    2024,
+			month:   time.June,
+			day:     21,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseNMEA(tt.nmea, tt.year, tt.month, tt.day)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseNMEA() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseGGA_AdditionalEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		fields  []string
+		year    int
+		month   time.Month
+		day     int
+		wantErr bool
+	}{
+		{
+			name:    "Too few fields",
+			fields:  []string{"GPGGA", "123519"},
+			year:    2024,
+			month:   time.June,
+			day:     21,
+			wantErr: true,
+		},
+		{
+			name:    "Missing year",
+			fields:  []string{"GPGGA", "123519", "4339.192", "N", "07922.992", "W", "1"},
+			year:    0,
+			month:   time.June,
+			day:     21,
+			wantErr: true,
+		},
+		{
+			name:    "Missing month",
+			fields:  []string{"GPGGA", "123519", "4339.192", "N", "07922.992", "W", "1"},
+			year:    2024,
+			month:   0,
+			day:     21,
+			wantErr: true,
+		},
+		{
+			name:    "Missing day",
+			fields:  []string{"GPGGA", "123519", "4339.192", "N", "07922.992", "W", "1"},
+			year:    2024,
+			month:   time.June,
+			day:     0,
+			wantErr: true,
+		},
+		{
+			name:    "Invalid time format",
+			fields:  []string{"GPGGA", "99", "4339.192", "N", "07922.992", "W", "1"},
+			year:    2024,
+			month:   time.June,
+			day:     21,
+			wantErr: true,
+		},
+		{
+			name:    "Invalid latitude format",
+			fields:  []string{"GPGGA", "123519", "invalid", "N", "07922.992", "W", "1"},
+			year:    2024,
+			month:   time.June,
+			day:     21,
+			wantErr: true,
+		},
+		{
+			name:    "Invalid longitude format",
+			fields:  []string{"GPGGA", "123519", "4339.192", "N", "invalid", "W", "1"},
+			year:    2024,
+			month:   time.June,
+			day:     21,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseGGA(tt.fields, tt.year, tt.month, tt.day)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseGGA() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseRMC_AdditionalEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		fields  []string
+		wantErr bool
+		expYear int // Expected year for successful parses
+	}{
+		{
+			name:    "Too few fields",
+			fields:  []string{"GPRMC", "123519"},
+			wantErr: true,
+		},
+		{
+			name:    "Date string too short",
+			fields:  []string{"GPRMC", "123519", "A", "4339.192", "N", "07922.992", "W", "022.4", "084.4", "2303"},
+			wantErr: true,
+		},
+		{
+			name:    "Invalid day in date",
+			fields:  []string{"GPRMC", "123519", "A", "4339.192", "N", "07922.992", "W", "022.4", "084.4", "XX0394"},
+			wantErr: true,
+		},
+		{
+			name:    "Invalid month in date",
+			fields:  []string{"GPRMC", "123519", "A", "4339.192", "N", "07922.992", "W", "022.4", "084.4", "23XX94"},
+			wantErr: true,
+		},
+		{
+			name:    "Invalid year in date",
+			fields:  []string{"GPRMC", "123519", "A", "4339.192", "N", "07922.992", "W", "022.4", "084.4", "2303XX"},
+			wantErr: true,
+		},
+		{
+			name:    "Year >= 50 converts to 19xx",
+			fields:  []string{"GPRMC", "123519", "A", "4339.192", "N", "07922.992", "W", "022.4", "084.4", "230395"},
+			wantErr: false,
+			expYear: 1995,
+		},
+		{
+			name:    "Year < 50 converts to 20xx",
+			fields:  []string{"GPRMC", "123519", "A", "4339.192", "N", "07922.992", "W", "022.4", "084.4", "230325"},
+			wantErr: false,
+			expYear: 2025,
+		},
+		{
+			name:    "Invalid time string",
+			fields:  []string{"GPRMC", "99", "A", "4339.192", "N", "07922.992", "W", "022.4", "084.4", "230394"},
+			wantErr: true,
+		},
+		{
+			name:    "Invalid latitude",
+			fields:  []string{"GPRMC", "123519", "A", "invalid", "N", "07922.992", "W", "022.4", "084.4", "230394"},
+			wantErr: true,
+		},
+		{
+			name:    "Invalid longitude",
+			fields:  []string{"GPRMC", "123519", "A", "4339.192", "N", "invalid", "W", "022.4", "084.4", "230394"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseRMC(tt.fields)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseRMC() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && tt.expYear > 0 {
+				if result.Time.Year() != tt.expYear {
+					t.Errorf("Expected year %d, got %d", tt.expYear, result.Time.Year())
+				}
+			}
+		})
+	}
+}
+
+func TestParseNMEATime_AdditionalEdgeCases(t *testing.T) {
+	tests := []struct {
+		name       string
+		timeStr    string
+		year       int
+		month      time.Month
+		day        int
+		wantErr    bool
+		wantNano   int // Expected nanoseconds for successful parses
+		checkNano  bool
+	}{
+		{
+			name:    "Invalid minute",
+			timeStr: "12XX19",
+			year:    2024,
+			month:   time.June,
+			day:     21,
+			wantErr: true,
+		},
+		{
+			name:    "Invalid second",
+			timeStr: "1235XX",
+			year:    2024,
+			month:   time.June,
+			day:     21,
+			wantErr: true,
+		},
+		{
+			name:      "Fractional seconds - short (should pad)",
+			timeStr:   "123519.12",
+			year:      2024,
+			month:     time.June,
+			day:       21,
+			wantErr:   false,
+			wantNano:  120000000,
+			checkNano: true,
+		},
+		{
+			name:      "Fractional seconds - long (should truncate)",
+			timeStr:   "123519.1234567890123",
+			year:      2024,
+			month:     time.June,
+			day:       21,
+			wantErr:   false,
+			wantNano:  123456789,
+			checkNano: true,
+		},
+		{
+			name:    "Invalid fractional seconds",
+			timeStr: "123519.XXX",
+			year:    2024,
+			month:   time.June,
+			day:     21,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseNMEATime(tt.timeStr, tt.year, tt.month, tt.day)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseNMEATime() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && tt.checkNano {
+				if result.Nanosecond() != tt.wantNano {
+					t.Errorf("Expected nanosecond = %d, got %d", tt.wantNano, result.Nanosecond())
+				}
+			}
+		})
+	}
+}
+
+func TestParseLatitude_AdditionalEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		latStr  string
+		nsStr   string
+		wantErr bool
+	}{
+		{
+			name:    "Empty N/S indicator",
+			latStr:  "4339.192",
+			nsStr:   "",
+			wantErr: true,
+		},
+		{
+			name:    "Decimal too early",
+			latStr:  "4.39192",
+			nsStr:   "N",
+			wantErr: true,
+		},
+		{
+			name:    "Invalid degrees",
+			latStr:  "XX39.192",
+			nsStr:   "N",
+			wantErr: true,
+		},
+		{
+			name:    "Invalid minutes",
+			latStr:  "43XX.192",
+			nsStr:   "N",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseLatitude(tt.latStr, tt.nsStr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseLatitude() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseLongitude_AdditionalEdgeCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		lonStr  string
+		ewStr   string
+		wantErr bool
+	}{
+		{
+			name:    "Empty E/W indicator",
+			lonStr:  "07922.992",
+			ewStr:   "",
+			wantErr: true,
+		},
+		{
+			name:    "Decimal too early",
+			lonStr:  "7.922992",
+			ewStr:   "W",
+			wantErr: true,
+		},
+		{
+			name:    "Invalid degrees",
+			lonStr:  "XXX22.992",
+			ewStr:   "W",
+			wantErr: true,
+		},
+		{
+			name:    "Invalid minutes",
+			lonStr:  "079XX.992",
+			ewStr:   "W",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseLongitude(tt.lonStr, tt.ewStr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseLongitude() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
