@@ -72,4 +72,25 @@ const (
 	// LongitudeDivisor is used in mean solar noon calculation.
 	// Dividing longitude by 360 converts it to a fractional day offset.
 	LongitudeDivisor = 360.0
+
+	// CivilTwilightAngle is the solar elevation angle for civil twilight (-6°).
+	// Civil twilight occurs when the sun is between the horizon and 6° below it.
+	// During civil twilight, there is enough natural light for most outdoor activities
+	// without artificial lighting. This is the most commonly used definition for
+	// dawn and dusk in everyday contexts.
+	CivilTwilightAngle = -6.0
+
+	// NauticalTwilightAngle is the solar elevation angle for nautical twilight (-12°).
+	// Nautical twilight occurs when the sun is between 6° and 12° below the horizon.
+	// During nautical twilight, the horizon is still visible at sea, allowing sailors
+	// to take reliable readings using a marine sextant. The general outline of ground
+	// objects may be distinguishable, but detailed outdoor work is difficult.
+	NauticalTwilightAngle = -12.0
+
+	// AstronomicalTwilightAngle is the solar elevation angle for astronomical twilight (-18°).
+	// Astronomical twilight occurs when the sun is between 12° and 18° below the horizon.
+	// During astronomical twilight, the sky is dark enough for most astronomical
+	// observations of point sources of light such as stars, though the Sun's light
+	// may still interfere with observations of extremely faint objects.
+	AstronomicalTwilightAngle = -18.0
 )

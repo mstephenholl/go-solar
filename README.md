@@ -13,6 +13,7 @@ A modern, well-tested Go package for calculating sunrise, sunset, and solar elev
 ## ✨ Features
 
 - 🌅 Calculate sunrise and sunset times for any location
+- 🌄 Calculate dawn and dusk with civil, nautical, and astronomical twilight
 - 📐 Determine solar elevation and azimuth angles
 - 🧭 Calculate solar azimuth (compass direction of the sun)
 - 🛰️ Parse NMEA GPS sentences (GGA, RMC) for location-based calculations
@@ -114,6 +115,31 @@ azimuth := solar.Azimuth(latitude, longitude, when)
 fmt.Printf("Sun azimuth: %.2f degrees\n", azimuth)
 ```
 
+### Dawn and Dusk (Twilight Times)
+
+Calculate dawn and dusk using civil, nautical, or astronomical twilight definitions:
+
+```go
+// Calculate civil dawn and dusk (default, -6° sun angle)
+dawn, dusk := solar.DawnDusk(latitude, longitude, 2024, time.June, 21)
+fmt.Printf("Dawn: %s, Dusk: %s\n", dawn.Format("15:04"), dusk.Format("15:04"))
+
+// Or get them individually
+dawn := solar.Dawn(latitude, longitude, 2024, time.June, 21)
+dusk := solar.Dusk(latitude, longitude, 2024, time.June, 21)
+
+// Nautical twilight (-12° sun angle, for marine navigation)
+dawn, dusk := solar.DawnDusk(latitude, longitude, 2024, time.June, 21, solar.Nautical)
+
+// Astronomical twilight (-18° sun angle, for astronomy)
+dawn, dusk := solar.DawnDusk(latitude, longitude, 2024, time.June, 21, solar.Astronomical)
+```
+
+**Twilight Types:**
+- **Civil** (-6°): Default. Enough light for outdoor activities without artificial lighting
+- **Nautical** (-12°): Horizon visible at sea for navigation, general ground outlines visible
+- **Astronomical** (-18°): Sky dark enough for astronomical observations
+
 ### Custom Elevation Times
 
 ```go
@@ -196,6 +222,9 @@ fmt.Printf("Golden hour: %s to %s\n", morning.Format("15:04"), evening.Format("1
 - `SunriseFromNMEA()` - Calculate sunrise from GPS sentence
 - `SunsetFromNMEA()` - Calculate sunset from GPS sentence
 - `SunriseSunsetFromNMEA()` - Calculate both sunrise and sunset
+- `DawnFromNMEA()` - Calculate dawn from GPS sentence (supports Civil/Nautical/Astronomical)
+- `DuskFromNMEA()` - Calculate dusk from GPS sentence (supports Civil/Nautical/Astronomical)
+- `DawnDuskFromNMEA()` - Calculate both dawn and dusk from GPS sentence
 - `MeanSolarNoonFromNMEA()` - Calculate solar noon from GPS sentence
 - `ElevationFromNMEA()` - Calculate current solar elevation from GPS sentence
 - `TimeOfElevationFromNMEA()` - Calculate when sun reaches specific elevation

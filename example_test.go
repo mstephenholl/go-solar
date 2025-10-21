@@ -211,3 +211,77 @@ func ExampleAzimuth() {
 	// Output:
 	// Azimuth: 174.8 degrees (South)
 }
+
+// ExampleDawn demonstrates calculating civil dawn (beginning of morning twilight).
+func ExampleDawn() {
+	// Toronto coordinates
+	latitude := 43.65
+	longitude := -79.38
+
+	// Calculate civil dawn for January 1, 2000 (default)
+	dawn := solar.Dawn(latitude, longitude, 2000, time.January, 1)
+
+	fmt.Printf("Civil dawn: %s\n", dawn.Format("15:04 MST"))
+	// Output:
+	// Civil dawn: 12:18 UTC
+}
+
+// ExampleDusk demonstrates calculating civil dusk (end of evening twilight).
+func ExampleDusk() {
+	// Toronto coordinates
+	latitude := 43.65
+	longitude := -79.38
+
+	// Calculate civil dusk for January 1, 2000 (default)
+	dusk := solar.Dusk(latitude, longitude, 2000, time.January, 1)
+
+	fmt.Printf("Civil dusk: %s\n", dusk.Format("15:04 MST"))
+	// Output:
+	// Civil dusk: 22:23 UTC
+}
+
+// ExampleDawnDusk demonstrates calculating both dawn and dusk times.
+func ExampleDawnDusk() {
+	// Toronto coordinates
+	latitude := 43.65
+	longitude := -79.38
+
+	// Calculate civil dawn and dusk for January 1, 2000
+	dawn, dusk := solar.DawnDusk(latitude, longitude, 2000, time.January, 1)
+
+	fmt.Printf("Dawn: %s\n", dawn.Format("15:04 MST"))
+	fmt.Printf("Dusk: %s\n", dusk.Format("15:04 MST"))
+	// Output:
+	// Dawn: 12:18 UTC
+	// Dusk: 22:23 UTC
+}
+
+// ExampleDawn_nautical demonstrates calculating nautical dawn.
+func ExampleDawn_nautical() {
+	// Toronto coordinates
+	latitude := 43.65
+	longitude := -79.38
+
+	// Calculate nautical dawn (sun at -12° below horizon)
+	nauticalDawn := solar.Dawn(latitude, longitude, 2000, time.January, 1, solar.Nautical)
+
+	fmt.Printf("Nautical dawn: %s\n", nauticalDawn.Format("15:04 MST"))
+	// Output:
+	// Nautical dawn: 11:42 UTC
+}
+
+// ExampleDawnDusk_astronomical demonstrates calculating astronomical twilight.
+func ExampleDawnDusk_astronomical() {
+	// Toronto coordinates
+	latitude := 43.65
+	longitude := -79.38
+
+	// Calculate astronomical dawn and dusk (sun at -18° below horizon)
+	dawn, dusk := solar.DawnDusk(latitude, longitude, 2000, time.January, 1, solar.Astronomical)
+
+	fmt.Printf("Astronomical dawn: %s\n", dawn.Format("15:04 MST"))
+	fmt.Printf("Astronomical dusk: %s\n", dusk.Format("15:04 MST"))
+	// Output:
+	// Astronomical dawn: 11:07 UTC
+	// Astronomical dusk: 23:34 UTC
+}
