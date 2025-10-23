@@ -88,7 +88,9 @@ var dataElevation = []struct {
 
 func TestTimeOfElevation(t *testing.T) {
 	for _, tt := range dataElevation {
-		vFirst, vSecond := TimeOfElevation(tt.inLatitude, tt.inLongitude, tt.inElevation, tt.inYear, tt.inMonth, tt.inDay)
+		loc := NewLocation(tt.inLatitude, tt.inLongitude)
+		tm := NewTime(tt.inYear, tt.inMonth, tt.inDay)
+		vFirst, vSecond := TimeOfElevation(loc, tt.inElevation, tm)
 		if Abs(vFirst.Unix()-tt.outFirst.Unix()) > 2 {
 			t.Fatalf("%s != %s", vFirst.String(), tt.outFirst.String())
 		}
@@ -104,11 +106,12 @@ func TestElevation(t *testing.T) {
 			continue // Not reversible from output
 		}
 
-		vFirst := Elevation(tt.inLatitude, tt.inLongitude, tt.outFirst)
+		loc := NewLocation(tt.inLatitude, tt.inLongitude)
+		vFirst := Elevation(loc, tt.outFirst)
 		if !AlmostEqual(vFirst, tt.inElevation, 2.0) {
 			t.Fatalf("%f != %f", vFirst, tt.inElevation)
 		}
-		vSecond := Elevation(tt.inLatitude, tt.inLongitude, tt.outSecond)
+		vSecond := Elevation(loc, tt.outSecond)
 		if !AlmostEqual(vSecond, tt.inElevation, 2.0) {
 			t.Fatalf("%f != %f", vSecond, tt.inElevation)
 		}
@@ -117,28 +120,24 @@ func TestElevation(t *testing.T) {
 
 // Benchmark for the Elevation function
 func BenchmarkElevation(b *testing.B) {
-	latitude := 40.7128
-	longitude := -74.0060
+	loc := NewLocation(40.7128, -74.0060)
 	when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Elevation(latitude, longitude, when)
+		_ = Elevation(loc, when)
 	}
 }
 
 // Benchmark for the TimeOfElevation function
 func BenchmarkTimeOfElevation(b *testing.B) {
-	latitude := 51.5072
-	longitude := -0.1276
+	loc := NewLocation(51.5072, -0.1276)
 	elevation := -8.5
-	year := 2024
-	month := time.June
-	day := 21
+	tm := NewTime(2024, time.June, 21)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = TimeOfElevation(latitude, longitude, elevation, year, month, day)
+		_, _ = TimeOfElevation(loc, elevation, tm)
 	}
 }
 
@@ -156,13 +155,13 @@ func BenchmarkTimeOfElevation_Angles(b *testing.B) {
 		{"SolarNoon", 60.0},
 	}
 
-	latitude := 40.7128
-	longitude := -74.0060
+	loc := NewLocation(40.7128, -74.0060)
+	tm := NewTime(2024, time.June, 21)
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _ = TimeOfElevation(latitude, longitude, tc.elevation, 2024, time.June, 21)
+				_, _ = TimeOfElevation(loc, tc.elevation, tm)
 			}
 		})
 	}

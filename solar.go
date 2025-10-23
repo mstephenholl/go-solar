@@ -1,103 +1,126 @@
 package solar
 
 import (
+	"errors"
 	"math"
 	"time"
 )
 
+var (
+	// ErrSunNeverRises is returned when the sun never rises at the given location and date (polar night).
+	ErrSunNeverRises = errors.New("sun never rises at this location on this date")
+	// ErrSunNeverSets is returned when the sun never sets at the given location and date (midnight sun).
+	ErrSunNeverSets = errors.New("sun never sets at this location on this date")
+)
+
 // Sunrise calculates when the sun will rise on the given day at the specified location.
 //
-// All times are calculated and returned in UTC. The input date (year, month, day) is
-// interpreted as UTC. To convert to local time, use time.In() with the appropriate
-// timezone.
+// All times are calculated and returned in UTC. To convert to local time, use time.In()
+// with the appropriate timezone.
 //
 // Parameters:
-//   - latitude: Latitude in decimal degrees (-90 to +90, negative for South)
-//   - longitude: Longitude in decimal degrees (-180 to +180, negative for West)
-//   - year, month, day: The date in UTC for which to calculate sunrise
+//   - loc: Location created via NewLocation() or NewLocationFromNMEA()
+//   - t: Time created via NewTime(), NewTimeFromDateTime(), or NewTimeFromNMEA()
 //
 // Returns:
 //   - Sunrise time in UTC
-//   - time.Time{} if the sun does not rise on this day (e.g., polar night)
+//   - error if the sun does not rise on this day (e.g., polar night)
 //
 // Example:
 //
-//	sunrise := solar.Sunrise(40.7128, -74.0060, 2024, time.June, 21)
-//	fmt.Println(sunrise.Format("15:04:05 MST"))  // UTC time
-//	localTime := sunrise.In(time.Local)           // Convert to local time
-func Sunrise(latitude, longitude float64, year int, month time.Month, day int) time.Time {
-	rise, _ := sunriseSunsetInternal(latitude, longitude, year, month, day)
-	return rise
+//	loc := solar.NewLocation(40.7128, -74.0060)
+//	t := solar.NewTime(2024, time.June, 21)
+//	sunrise, err := solar.Sunrise(loc, t)
+//	if err != nil {
+//	    // Handle polar night or other errors
+//	}
+//	// sunrise is in UTC - convert to local time if needed
+//	localTime := sunrise.In(time.Local)
+func Sunrise(loc Location, t Time) (time.Time, error) {
+	rise, _, err := sunriseSunsetInternal(loc.Latitude(), loc.Longitude(), t.Year(), t.Month(), t.Day())
+	return rise, err
 }
 
 // Sunset calculates when the sun will set on the given day at the specified location.
 //
-// All times are calculated and returned in UTC. The input date (year, month, day) is
-// interpreted as UTC. To convert to local time, use time.In() with the appropriate
-// timezone.
+// All times are calculated and returned in UTC. To convert to local time, use time.In()
+// with the appropriate timezone.
 //
 // Parameters:
-//   - latitude: Latitude in decimal degrees (-90 to +90, negative for South)
-//   - longitude: Longitude in decimal degrees (-180 to +180, negative for West)
-//   - year, month, day: The date in UTC for which to calculate sunset
+//   - loc: Location created via NewLocation() or NewLocationFromNMEA()
+//   - t: Time created via NewTime(), NewTimeFromDateTime(), or NewTimeFromNMEA()
 //
 // Returns:
 //   - Sunset time in UTC
-//   - time.Time{} if the sun does not set on this day (e.g., midnight sun)
+//   - error if the sun does not set on this day (e.g., midnight sun)
 //
 // Example:
 //
-//	sunset := solar.Sunset(40.7128, -74.0060, 2024, time.June, 21)
-//	fmt.Println(sunset.Format("15:04:05 MST"))  // UTC time
-//	localTime := sunset.In(time.Local)          // Convert to local time
-func Sunset(latitude, longitude float64, year int, month time.Month, day int) time.Time {
-	_, set := sunriseSunsetInternal(latitude, longitude, year, month, day)
-	return set
+//	loc := solar.NewLocation(40.7128, -74.0060)
+//	t := solar.NewTime(2024, time.June, 21)
+//	sunset, err := solar.Sunset(loc, t)
+//	if err != nil {
+//	    // Handle midnight sun or other errors
+//	}
+//	// sunset is in UTC - convert to local time if needed
+//	localTime := sunset.In(time.Local)
+func Sunset(loc Location, t Time) (time.Time, error) {
+	_, set, err := sunriseSunsetInternal(loc.Latitude(), loc.Longitude(), t.Year(), t.Month(), t.Day())
+	return set, err
 }
 
 // SunriseSunset calculates when the sun will rise and when it will set on the
 // given day at the specified location.
 //
-// All times are calculated and returned in UTC. The input date (year, month, day) is
-// interpreted as UTC. To convert to local time, use time.In() with the appropriate
-// timezone.
+// All times are calculated and returned in UTC. To convert to local time, use time.In()
+// with the appropriate timezone.
 //
 // Parameters:
-//   - latitude: Latitude in decimal degrees (-90 to +90, negative for South)
-//   - longitude: Longitude in decimal degrees (-180 to +180, negative for West)
-//   - year, month, day: The date in UTC for which to calculate sunrise and sunset
+//   - loc: Location created via NewLocation() or NewLocationFromNMEA()
+//   - t: Time created via NewTime(), NewTimeFromDateTime(), or NewTimeFromNMEA()
 //
 // Returns:
-//   - sunrise: Sunrise time in UTC (time.Time{} if sun does not rise)
-//   - sunset: Sunset time in UTC (time.Time{} if sun does not set)
+//   - sunrise: Sunrise time in UTC
+//   - sunset: Sunset time in UTC
+//   - error if the sun does not rise or set (e.g., polar night or midnight sun)
 //
 // Example:
 //
-//	sunrise, sunset := solar.SunriseSunset(40.7128, -74.0060, 2024, time.June, 21)
-//	fmt.Printf("Sunrise: %s, Sunset: %s\n", sunrise.Format("15:04 MST"), sunset.Format("15:04 MST"))
-func SunriseSunset(latitude, longitude float64, year int, month time.Month, day int) (time.Time, time.Time) {
-	return sunriseSunsetInternal(latitude, longitude, year, month, day)
+//	loc := solar.NewLocation(40.7128, -74.0060)
+//	t := solar.NewTime(2024, time.June, 21)
+//	sunrise, sunset, err := solar.SunriseSunset(loc, t)
+//	if err != nil {
+//	    // Handle polar night or midnight sun
+//	}
+//	// Both times are in UTC - convert to local time if needed
+func SunriseSunset(loc Location, t Time) (time.Time, time.Time, error) {
+	return sunriseSunsetInternal(loc.Latitude(), loc.Longitude(), t.Year(), t.Month(), t.Day())
 }
 
 // sunriseSunsetInternal is the internal implementation shared by all public functions.
-func sunriseSunsetInternal(latitude, longitude float64, year int, month time.Month, day int) (time.Time, time.Time) {
+func sunriseSunsetInternal(latitude, longitude float64, year int, month time.Month, day int) (time.Time, time.Time, error) {
 	var (
-		d                 = MeanSolarNoon(longitude, year, month, day)
-		meanAnomaly       = MeanAnomaly(d)
-		equationOfCenter  = EquationOfCenter(meanAnomaly)
-		eclipticLongitude = EclipticLongitude(meanAnomaly, equationOfCenter, d)
-		transit           = Transit(d, meanAnomaly, eclipticLongitude)
-		declination       = Declination(eclipticLongitude)
-		hourAngle         = HourAngle(latitude, declination)
+		d                 = meanSolarNoonInternal(longitude, year, month, day)
+		meanAnomaly       = meanAnomaly(d)
+		equationOfCenter  = equationOfCenter(meanAnomaly)
+		eclipticLongitude = eclipticLongitude(meanAnomaly, equationOfCenter, d)
+		transit           = transit(d, meanAnomaly, eclipticLongitude)
+		declination       = declination(eclipticLongitude)
+		hourAngle         = hourAngle(latitude, declination)
 		frac              = hourAngle / FullCircleDegrees
 		sunrise           = transit - frac
 		sunset            = transit + frac
 	)
 
 	// Check for no sunrise, no sunset
-	if hourAngle == math.MaxFloat64 || hourAngle == -1*math.MaxFloat64 {
-		return time.Time{}, time.Time{}
+	if hourAngle == math.MaxFloat64 {
+		// Polar night - sun never rises
+		return time.Time{}, time.Time{}, ErrSunNeverRises
+	}
+	if hourAngle == -1*math.MaxFloat64 {
+		// Midnight sun - sun never sets
+		return time.Time{}, time.Time{}, ErrSunNeverSets
 	}
 
-	return JulianDayToTime(sunrise), JulianDayToTime(sunset)
+	return JulianDayToTime(sunrise), JulianDayToTime(sunset), nil
 }

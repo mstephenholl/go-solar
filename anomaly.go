@@ -7,9 +7,9 @@ import (
 	"math"
 )
 
-// MeanAnomaly calculates the solar mean anomaly, which is the angle of the sun
+// meanAnomaly calculates the solar mean anomaly, which is the angle of the sun
 // relative to the earth for the specified Julian day.
-func MeanAnomaly(d float64) float64 {
+func meanAnomaly(d float64) float64 {
 	v := math.Remainder(SolarMeanAnomalyBase+SolarMeanAnomalyRate*(d-J2000), FullCircleDegrees)
 	if v < 0 {
 		v += FullCircleDegrees

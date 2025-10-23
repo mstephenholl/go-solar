@@ -22,7 +22,7 @@ var dataTestMeanSolarNoon = []struct {
 
 func TestMeanSolarNoon(t *testing.T) {
 	for _, tt := range dataTestMeanSolarNoon {
-		v := MeanSolarNoon(tt.inLongitude, tt.inYear, tt.inMonth, tt.inDay)
+		v := meanSolarNoonInternal(tt.inLongitude, tt.inYear, tt.inMonth, tt.inDay)
 		if Round(v, DefaultPlaces) != Round(tt.out, DefaultPlaces) {
 			t.Fatalf("%f != %f", v, tt.out)
 		}
@@ -141,7 +141,7 @@ func TestMeanSolarNoonFromNMEA_ConsistencyWithDirect(t *testing.T) {
 
 	// Calculate directly using known Toronto coordinates and date
 	// Toronto: 43.65° N, 79.38° W, March 23, 1994
-	jd := MeanSolarNoon(-79.38, 1994, time.March, 23)
+	jd := meanSolarNoonInternal(-79.38, 1994, time.March, 23)
 	solarNoonDirect := JulianDayToTime(jd)
 
 	// Should be very close (within 1 second due to rounding in NMEA coordinates)

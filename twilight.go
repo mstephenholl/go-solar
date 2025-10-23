@@ -39,6 +39,21 @@ func twilightAngle(t TwilightType) float64 {
 	}
 }
 
+// dawnInternal is the internal implementation with old signature
+func dawnInternal(latitude, longitude float64, year int, month time.Month, day int, twilightType ...TwilightType) time.Time {
+	// Determine twilight type (default to Civil)
+	var tt TwilightType
+	if len(twilightType) > 0 {
+		tt = twilightType[0]
+	} else {
+		tt = Civil
+	}
+
+	// Calculate dawn using timeOfElevationInternal with the appropriate angle
+	dawn, _ := timeOfElevationInternal(latitude, longitude, twilightAngle(tt), year, month, day)
+	return dawn
+}
+
 // Dawn calculates the dawn time for a given location and date.
 // Dawn is the beginning of morning twilight, when the sun reaches the specified
 // angle below the horizon and natural light begins to appear.
@@ -48,9 +63,8 @@ func twilightAngle(t TwilightType) float64 {
 // twilight types for specialized applications.
 //
 // Parameters:
-//   - latitude: Latitude in decimal degrees (-90 to +90, negative for South)
-//   - longitude: Longitude in decimal degrees (-180 to +180, negative for West)
-//   - year, month, day: The date in UTC for which to calculate dawn
+//   - loc: Location created via NewLocation() or NewLocationFromNMEA()
+//   - t: Time created via NewTime(), NewTimeFromDateTime(), or NewTimeFromNMEA()
 //   - twilightType: Optional twilight type (Civil, Nautical, or Astronomical). Defaults to Civil.
 //
 // Returns:
@@ -58,15 +72,22 @@ func twilightAngle(t TwilightType) float64 {
 //
 // Example:
 //
+//	loc := solar.NewLocation(40.7128, -74.0060)
+//	t := solar.NewTime(2024, time.June, 21)
 //	// Calculate civil dawn (default)
-//	dawn := solar.Dawn(40.7128, -74.0060, 2024, time.June, 21)
+//	dawn := solar.Dawn(loc, t)
 //
 //	// Calculate nautical dawn
-//	dawn := solar.Dawn(40.7128, -74.0060, 2024, time.June, 21, solar.Nautical)
+//	dawn := solar.Dawn(loc, t, solar.Nautical)
 //
 //	// Calculate astronomical dawn
-//	dawn := solar.Dawn(40.7128, -74.0060, 2024, time.June, 21, solar.Astronomical)
-func Dawn(latitude, longitude float64, year int, month time.Month, day int, twilightType ...TwilightType) time.Time {
+//	dawn := solar.Dawn(loc, t, solar.Astronomical)
+func Dawn(loc Location, t Time, twilightType ...TwilightType) time.Time {
+	return dawnInternal(loc.Latitude(), loc.Longitude(), t.Year(), t.Month(), t.Day(), twilightType...)
+}
+
+// duskInternal is the internal implementation with old signature
+func duskInternal(latitude, longitude float64, year int, month time.Month, day int, twilightType ...TwilightType) time.Time {
 	// Determine twilight type (default to Civil)
 	var tt TwilightType
 	if len(twilightType) > 0 {
@@ -75,9 +96,9 @@ func Dawn(latitude, longitude float64, year int, month time.Month, day int, twil
 		tt = Civil
 	}
 
-	// Calculate dawn using TimeOfElevation with the appropriate angle
-	dawn, _ := TimeOfElevation(latitude, longitude, twilightAngle(tt), year, month, day)
-	return dawn
+	// Calculate dusk using timeOfElevationInternal with the appropriate angle
+	_, dusk := timeOfElevationInternal(latitude, longitude, twilightAngle(tt), year, month, day)
+	return dusk
 }
 
 // Dusk calculates the dusk time for a given location and date.
@@ -89,9 +110,8 @@ func Dawn(latitude, longitude float64, year int, month time.Month, day int, twil
 // twilight types for specialized applications.
 //
 // Parameters:
-//   - latitude: Latitude in decimal degrees (-90 to +90, negative for South)
-//   - longitude: Longitude in decimal degrees (-180 to +180, negative for West)
-//   - year, month, day: The date in UTC for which to calculate dusk
+//   - loc: Location created via NewLocation() or NewLocationFromNMEA()
+//   - t: Time created via NewTime(), NewTimeFromDateTime(), or NewTimeFromNMEA()
 //   - twilightType: Optional twilight type (Civil, Nautical, or Astronomical). Defaults to Civil.
 //
 // Returns:
@@ -99,15 +119,22 @@ func Dawn(latitude, longitude float64, year int, month time.Month, day int, twil
 //
 // Example:
 //
+//	loc := solar.NewLocation(40.7128, -74.0060)
+//	t := solar.NewTime(2024, time.June, 21)
 //	// Calculate civil dusk (default)
-//	dusk := solar.Dusk(40.7128, -74.0060, 2024, time.June, 21)
+//	dusk := solar.Dusk(loc, t)
 //
 //	// Calculate nautical dusk
-//	dusk := solar.Dusk(40.7128, -74.0060, 2024, time.June, 21, solar.Nautical)
+//	dusk := solar.Dusk(loc, t, solar.Nautical)
 //
 //	// Calculate astronomical dusk
-//	dusk := solar.Dusk(40.7128, -74.0060, 2024, time.June, 21, solar.Astronomical)
-func Dusk(latitude, longitude float64, year int, month time.Month, day int, twilightType ...TwilightType) time.Time {
+//	dusk := solar.Dusk(loc, t, solar.Astronomical)
+func Dusk(loc Location, t Time, twilightType ...TwilightType) time.Time {
+	return duskInternal(loc.Latitude(), loc.Longitude(), t.Year(), t.Month(), t.Day(), twilightType...)
+}
+
+// dawnDuskInternal is the internal implementation with old signature
+func dawnDuskInternal(latitude, longitude float64, year int, month time.Month, day int, twilightType ...TwilightType) (dawn, dusk time.Time) {
 	// Determine twilight type (default to Civil)
 	var tt TwilightType
 	if len(twilightType) > 0 {
@@ -116,9 +143,8 @@ func Dusk(latitude, longitude float64, year int, month time.Month, day int, twil
 		tt = Civil
 	}
 
-	// Calculate dusk using TimeOfElevation with the appropriate angle
-	_, dusk := TimeOfElevation(latitude, longitude, twilightAngle(tt), year, month, day)
-	return dusk
+	// Calculate both times using timeOfElevationInternal with the appropriate angle
+	return timeOfElevationInternal(latitude, longitude, twilightAngle(tt), year, month, day)
 }
 
 // DawnDusk calculates both dawn and dusk times for a given location and date.
@@ -128,9 +154,8 @@ func Dusk(latitude, longitude float64, year int, month time.Month, day int, twil
 // or Astronomical twilight types for specialized applications.
 //
 // Parameters:
-//   - latitude: Latitude in decimal degrees (-90 to +90, negative for South)
-//   - longitude: Longitude in decimal degrees (-180 to +180, negative for West)
-//   - year, month, day: The date in UTC for which to calculate dawn and dusk
+//   - loc: Location created via NewLocation() or NewLocationFromNMEA()
+//   - t: Time created via NewTime(), NewTimeFromDateTime(), or NewTimeFromNMEA()
 //   - twilightType: Optional twilight type (Civil, Nautical, or Astronomical). Defaults to Civil.
 //
 // Returns:
@@ -139,22 +164,15 @@ func Dusk(latitude, longitude float64, year int, month time.Month, day int, twil
 //
 // Example:
 //
+//	loc := solar.NewLocation(40.7128, -74.0060)
+//	t := solar.NewTime(2024, time.June, 21)
 //	// Calculate civil dawn and dusk (default)
-//	dawn, dusk := solar.DawnDusk(40.7128, -74.0060, 2024, time.June, 21)
+//	dawn, dusk := solar.DawnDusk(loc, t)
 //
 //	// Calculate nautical dawn and dusk
-//	dawn, dusk := solar.DawnDusk(40.7128, -74.0060, 2024, time.June, 21, solar.Nautical)
-func DawnDusk(latitude, longitude float64, year int, month time.Month, day int, twilightType ...TwilightType) (dawn, dusk time.Time) {
-	// Determine twilight type (default to Civil)
-	var tt TwilightType
-	if len(twilightType) > 0 {
-		tt = twilightType[0]
-	} else {
-		tt = Civil
-	}
-
-	// Calculate both times using TimeOfElevation with the appropriate angle
-	return TimeOfElevation(latitude, longitude, twilightAngle(tt), year, month, day)
+//	dawn, dusk := solar.DawnDusk(loc, t, solar.Nautical)
+func DawnDusk(loc Location, t Time, twilightType ...TwilightType) (dawn, dusk time.Time) {
+	return dawnDuskInternal(loc.Latitude(), loc.Longitude(), t.Year(), t.Month(), t.Day(), twilightType...)
 }
 
 // DawnFromNMEA calculates the dawn time from an NMEA GPS sentence.
@@ -181,23 +199,17 @@ func DawnDusk(latitude, longitude float64, year int, month time.Month, day int, 
 //	    log.Fatal(err)
 //	}
 func DawnFromNMEA(nmea string, year int, month time.Month, day int, twilightType ...TwilightType) (time.Time, error) {
-	// Determine twilight type (default to Civil)
-	var tt TwilightType
-	if len(twilightType) > 0 {
-		tt = twilightType[0]
-	} else {
-		tt = Civil
-	}
-
-	// Parse the NMEA sentence to get position and time
-	pos, err := parseNMEA(nmea, year, month, day)
+	loc, err := NewLocationFromNMEA(nmea, year, month, day)
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	// Calculate dawn using the parsed location and date
-	dawn := Dawn(pos.Latitude, pos.Longitude, pos.Time.Year(), pos.Time.Month(), pos.Time.Day(), tt)
-	return dawn, nil
+	t, err := NewTimeFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return Dawn(loc, t, twilightType...), nil
 }
 
 // DuskFromNMEA calculates the dusk time from an NMEA GPS sentence.
@@ -224,23 +236,17 @@ func DawnFromNMEA(nmea string, year int, month time.Month, day int, twilightType
 //	    log.Fatal(err)
 //	}
 func DuskFromNMEA(nmea string, year int, month time.Month, day int, twilightType ...TwilightType) (time.Time, error) {
-	// Determine twilight type (default to Civil)
-	var tt TwilightType
-	if len(twilightType) > 0 {
-		tt = twilightType[0]
-	} else {
-		tt = Civil
-	}
-
-	// Parse the NMEA sentence to get position and time
-	pos, err := parseNMEA(nmea, year, month, day)
+	loc, err := NewLocationFromNMEA(nmea, year, month, day)
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	// Calculate dusk using the parsed location and date
-	dusk := Dusk(pos.Latitude, pos.Longitude, pos.Time.Year(), pos.Time.Month(), pos.Time.Day(), tt)
-	return dusk, nil
+	t, err := NewTimeFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return Dusk(loc, t, twilightType...), nil
 }
 
 // DawnDuskFromNMEA calculates both dawn and dusk times from an NMEA GPS sentence.
@@ -269,21 +275,16 @@ func DuskFromNMEA(nmea string, year int, month time.Month, day int, twilightType
 //	    log.Fatal(err)
 //	}
 func DawnDuskFromNMEA(nmea string, year int, month time.Month, day int, twilightType ...TwilightType) (dawn, dusk time.Time, err error) {
-	// Determine twilight type (default to Civil)
-	var tt TwilightType
-	if len(twilightType) > 0 {
-		tt = twilightType[0]
-	} else {
-		tt = Civil
+	loc, err := NewLocationFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
 	}
 
-	// Parse the NMEA sentence to get position and time
-	pos, parseErr := parseNMEA(nmea, year, month, day)
-	if parseErr != nil {
-		return time.Time{}, time.Time{}, parseErr
+	t, err := NewTimeFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
 	}
 
-	// Calculate both times using the parsed location and date
-	dawn, dusk = DawnDusk(pos.Latitude, pos.Longitude, pos.Time.Year(), pos.Time.Month(), pos.Time.Day(), tt)
+	dawn, dusk = DawnDusk(loc, t, twilightType...)
 	return dawn, dusk, nil
 }

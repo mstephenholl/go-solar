@@ -12,14 +12,20 @@ func TestDawn(t *testing.T) {
 	latitude := 43.65
 	longitude := -79.38
 
+	loc := NewLocation(latitude, longitude)
+	tm := NewTime(2024, time.June, 21)
+
 	// Test civil dawn (default)
-	civilDawn := Dawn(latitude, longitude, 2024, time.June, 21)
+	civilDawn := Dawn(loc, tm)
 	if civilDawn.IsZero() {
 		t.Error("Dawn() returned zero time for civil twilight")
 	}
 
 	// Verify it's before sunrise
-	sunrise := Sunrise(latitude, longitude, 2024, time.June, 21)
+	sunrise, err := Sunrise(loc, tm)
+	if err != nil {
+		t.Fatalf("Sunrise() error = %v", err)
+	}
 	if !civilDawn.Before(sunrise) {
 		t.Errorf("Civil dawn (%v) should be before sunrise (%v)", civilDawn, sunrise)
 	}
@@ -31,14 +37,20 @@ func TestDusk(t *testing.T) {
 	latitude := 43.65
 	longitude := -79.38
 
+	loc := NewLocation(latitude, longitude)
+	tm := NewTime(2024, time.June, 21)
+
 	// Test civil dusk (default)
-	civilDusk := Dusk(latitude, longitude, 2024, time.June, 21)
+	civilDusk := Dusk(loc, tm)
 	if civilDusk.IsZero() {
 		t.Error("Dusk() returned zero time for civil twilight")
 	}
 
 	// Verify it's after sunset
-	sunset := Sunset(latitude, longitude, 2024, time.June, 21)
+	sunset, err := Sunset(loc, tm)
+	if err != nil {
+		t.Fatalf("Sunset() error = %v", err)
+	}
 	if !civilDusk.After(sunset) {
 		t.Errorf("Civil dusk (%v) should be after sunset (%v)", civilDusk, sunset)
 	}
@@ -50,8 +62,11 @@ func TestDawnDusk(t *testing.T) {
 	latitude := 43.65
 	longitude := -79.38
 
+	loc := NewLocation(latitude, longitude)
+	tm := NewTime(2024, time.June, 21)
+
 	// Test civil twilight (default)
-	dawn, dusk := DawnDusk(latitude, longitude, 2024, time.June, 21)
+	dawn, dusk := DawnDusk(loc, tm)
 
 	if dawn.IsZero() || dusk.IsZero() {
 		t.Error("DawnDusk() returned zero times")
@@ -62,8 +77,8 @@ func TestDawnDusk(t *testing.T) {
 	}
 
 	// Verify consistency with individual functions
-	separateDawn := Dawn(latitude, longitude, 2024, time.June, 21)
-	separateDusk := Dusk(latitude, longitude, 2024, time.June, 21)
+	separateDawn := Dawn(loc, tm)
+	separateDusk := Dusk(loc, tm)
 
 	if !dawn.Equal(separateDawn) {
 		t.Errorf("DawnDusk dawn (%v) != Dawn() (%v)", dawn, separateDawn)
@@ -82,6 +97,9 @@ func TestTwilightTypes(t *testing.T) {
 	month := time.June
 	day := 21
 
+	loc := NewLocation(latitude, longitude)
+	tm := NewTime(year, month, day)
+
 	tests := []struct {
 		name          string
 		twilightType  TwilightType
@@ -97,19 +115,19 @@ func TestTwilightTypes(t *testing.T) {
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test Dawn
-			dawn := Dawn(latitude, longitude, year, month, day, tt.twilightType)
+			dawn := Dawn(loc, tm, tt.twilightType)
 			if dawn.IsZero() {
 				t.Errorf("Dawn(%s) returned zero time", tt.name)
 			}
 
 			// Test Dusk
-			dusk := Dusk(latitude, longitude, year, month, day, tt.twilightType)
+			dusk := Dusk(loc, tm, tt.twilightType)
 			if dusk.IsZero() {
 				t.Errorf("Dusk(%s) returned zero time", tt.name)
 			}
 
 			// Test DawnDusk
-			combinedDawn, combinedDusk := DawnDusk(latitude, longitude, year, month, day, tt.twilightType)
+			combinedDawn, combinedDusk := DawnDusk(loc, tm, tt.twilightType)
 			if !combinedDawn.Equal(dawn) || !combinedDusk.Equal(dusk) {
 				t.Errorf("DawnDusk(%s) inconsistent with separate calls", tt.name)
 			}
@@ -130,7 +148,7 @@ func TestTwilightTypes(t *testing.T) {
 			previousDusk = dusk
 
 			// Verify times match TimeOfElevation
-			expectedDawn, expectedDusk := TimeOfElevation(latitude, longitude, tt.expectedAngle, year, month, day)
+			expectedDawn, expectedDusk := TimeOfElevation(loc, tt.expectedAngle, tm)
 			if !dawn.Equal(expectedDawn) {
 				t.Errorf("Dawn(%s) = %v, want %v", tt.name, dawn, expectedDawn)
 			}
@@ -147,8 +165,11 @@ func TestDawnDusk_PolarRegions(t *testing.T) {
 	latitude := 69.3321443
 	longitude := -81.6781126
 
+	loc := NewLocation(latitude, longitude)
+	tm := NewTime(2020, time.June, 25)
+
 	// During polar day/night, some twilight types may not occur
-	dawn, dusk := DawnDusk(latitude, longitude, 2020, time.June, 25)
+	dawn, dusk := DawnDusk(loc, tm)
 
 	// Both should be zero (continuous daylight) or both should be valid
 	if (dawn.IsZero() && !dusk.IsZero()) || (!dawn.IsZero() && dusk.IsZero()) {
@@ -173,7 +194,9 @@ func TestDawnFromNMEA_RMC(t *testing.T) {
 	}
 
 	// Verify it matches direct calculation
-	directDawn := Dawn(43.65, -79.38, 2000, time.January, 1)
+	loc := NewLocation(43.65, -79.38)
+	tm := NewTime(2000, time.January, 1)
+	directDawn := Dawn(loc, tm)
 	diff := dawn.Sub(directDawn)
 	if math.Abs(diff.Seconds()) > 1 {
 		t.Errorf("NMEA dawn differs from direct calculation by %v", diff)
@@ -195,7 +218,9 @@ func TestDuskFromNMEA_GGA(t *testing.T) {
 	}
 
 	// Verify it matches direct calculation
-	directDusk := Dusk(0, 0, 2024, time.June, 21)
+	loc := NewLocation(0, 0)
+	tm := NewTime(2024, time.June, 21)
+	directDusk := Dusk(loc, tm)
 	diff := dusk.Sub(directDusk)
 	if math.Abs(diff.Seconds()) > 1 {
 		t.Errorf("NMEA dusk differs from direct calculation by %v", diff)
@@ -314,27 +339,39 @@ func TestDawnDuskFromNMEA_InvalidSentences(t *testing.T) {
 
 // BenchmarkDawn benchmarks the dawn calculation
 func BenchmarkDawn(b *testing.B) {
+	loc := NewLocation(43.65, -79.38)
+	tm := NewTime(2024, time.June, 21)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Dawn(43.65, -79.38, 2024, time.June, 21)
+		_ = Dawn(loc, tm)
 	}
 }
 
 // BenchmarkDusk benchmarks the dusk calculation
 func BenchmarkDusk(b *testing.B) {
+	loc := NewLocation(43.65, -79.38)
+	tm := NewTime(2024, time.June, 21)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Dusk(43.65, -79.38, 2024, time.June, 21)
+		_ = Dusk(loc, tm)
 	}
 }
 
 // BenchmarkDawnDusk benchmarks the combined calculation
 func BenchmarkDawnDusk(b *testing.B) {
+	loc := NewLocation(43.65, -79.38)
+	tm := NewTime(2024, time.June, 21)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = DawnDusk(43.65, -79.38, 2024, time.June, 21)
+		_, _ = DawnDusk(loc, tm)
 	}
 }
 
 // BenchmarkDawn_AllTypes benchmarks all twilight types
 func BenchmarkDawn_AllTypes(b *testing.B) {
+	loc := NewLocation(43.65, -79.38)
+	tm := NewTime(2024, time.June, 21)
+
 	types := []struct {
 		name string
 		tt   TwilightType
@@ -346,8 +383,9 @@ func BenchmarkDawn_AllTypes(b *testing.B) {
 
 	for _, tt := range types {
 		b.Run(tt.name, func(b *testing.B) {
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				_ = Dawn(43.65, -79.38, 2024, time.June, 21, tt.tt)
+				_ = Dawn(loc, tm, tt.tt)
 			}
 		})
 	}

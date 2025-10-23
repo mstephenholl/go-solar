@@ -46,7 +46,22 @@ var dataSunriseSunset = []struct {
 
 func TestSunriseSunset(t *testing.T) {
 	for _, tt := range dataSunriseSunset {
-		vSunrise, vSunset := SunriseSunset(tt.inLatitude, tt.inLongitude, tt.inYear, tt.inMonth, tt.inDay)
+		loc := NewLocation(tt.inLatitude, tt.inLongitude)
+		tm := NewTime(tt.inYear, tt.inMonth, tt.inDay)
+		vSunrise, vSunset, err := SunriseSunset(loc, tm)
+
+		// For polar regions, we expect an error
+		if tt.outSunrise.IsZero() && tt.outSunset.IsZero() {
+			if err == nil {
+				t.Fatalf("Expected error for polar region, got nil")
+			}
+			continue
+		}
+
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
 		if vSunrise != tt.outSunrise {
 			t.Fatalf("%s != %s", vSunrise.String(), tt.outSunrise.String())
 		}
@@ -58,57 +73,45 @@ func TestSunriseSunset(t *testing.T) {
 
 // Benchmark for the Sunrise function
 func BenchmarkSunrise(b *testing.B) {
-	latitude := 43.65
-	longitude := -79.38
-	year := 2024
-	month := time.June
-	day := 21
+	loc := NewLocation(43.65, -79.38)
+	tm := NewTime(2024, time.June, 21)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Sunrise(latitude, longitude, year, month, day)
+		_, _ = Sunrise(loc, tm)
 	}
 }
 
 // Benchmark for the Sunset function
 func BenchmarkSunset(b *testing.B) {
-	latitude := 43.65
-	longitude := -79.38
-	year := 2024
-	month := time.June
-	day := 21
+	loc := NewLocation(43.65, -79.38)
+	tm := NewTime(2024, time.June, 21)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Sunset(latitude, longitude, year, month, day)
+		_, _ = Sunset(loc, tm)
 	}
 }
 
 // Benchmark for the SunriseSunset function (both values)
 func BenchmarkSunriseSunset(b *testing.B) {
-	latitude := 43.65
-	longitude := -79.38
-	year := 2024
-	month := time.June
-	day := 21
+	loc := NewLocation(43.65, -79.38)
+	tm := NewTime(2024, time.June, 21)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = SunriseSunset(latitude, longitude, year, month, day)
+		_, _, _ = SunriseSunset(loc, tm)
 	}
 }
 
 // Benchmark for polar regions (edge case)
 func BenchmarkSunriseSunset_Polar(b *testing.B) {
-	latitude := 69.3321443
-	longitude := -81.6781126
-	year := 2020
-	month := time.June
-	day := 25
+	loc := NewLocation(69.3321443, -81.6781126)
+	tm := NewTime(2020, time.June, 25)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = SunriseSunset(latitude, longitude, year, month, day)
+		_, _, _ = SunriseSunset(loc, tm)
 	}
 }
 
@@ -127,9 +130,39 @@ func BenchmarkSunriseSunset_Latitudes(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
+			loc := NewLocation(tc.latitude, tc.longitude)
+			tm := NewTime(2024, time.June, 21)
 			for i := 0; i < b.N; i++ {
-				_, _ = SunriseSunset(tc.latitude, tc.longitude, 2024, time.June, 21)
+				_, _, _ = SunriseSunset(loc, tm)
 			}
 		})
+	}
+}
+
+// TestSunriseSunset_PolarNight tests that ErrSunNeverRises is returned
+// for polar night conditions (winter in polar regions).
+func TestSunriseSunset_PolarNight(t *testing.T) {
+	// Arctic location (Svalbard, Norway) in December - polar night
+	loc := NewLocation(78.2232, 15.6267)
+	tm := NewTime(2024, time.December, 21) // Winter solstice
+
+	_, _, err := SunriseSunset(loc, tm)
+
+	if err != ErrSunNeverRises {
+		t.Errorf("Expected ErrSunNeverRises for polar night, got: %v", err)
+	}
+}
+
+// TestSunriseSunset_MidnightSun tests that ErrSunNeverSets is returned
+// for midnight sun conditions (summer in polar regions).
+func TestSunriseSunset_MidnightSun(t *testing.T) {
+	// Arctic location (Igloolik, Nunavut) in June - midnight sun
+	loc := NewLocation(69.3321443, -81.6781126)
+	tm := NewTime(2020, time.June, 25)
+
+	_, _, err := SunriseSunset(loc, tm)
+
+	if err != ErrSunNeverSets {
+		t.Errorf("Expected ErrSunNeverSets for midnight sun, got: %v", err)
 	}
 }

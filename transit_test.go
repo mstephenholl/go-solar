@@ -18,14 +18,14 @@ var dataTransit = []struct {
 
 func TestTransit(t *testing.T) {
 	for _, tt := range dataTransit {
-		v := Transit(tt.inSolarNoon, tt.inSolarAnomaly, tt.inEclipticLongitude)
+		v := transit(tt.inSolarNoon, tt.inSolarAnomaly, tt.inEclipticLongitude)
 		if Round(v, DefaultPlaces) != Round(tt.out, DefaultPlaces) {
 			t.Fatalf("%f != %f", v, tt.out)
 		}
 	}
 }
 
-// Benchmark for Transit function
+// Benchmark for transit function
 func BenchmarkTransit(b *testing.B) {
 	d := 2451545.0
 	meanAnomaly := 357.5291
@@ -33,6 +33,6 @@ func BenchmarkTransit(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Transit(d, meanAnomaly, eclipticLongitude)
+		_ = transit(d, meanAnomaly, eclipticLongitude)
 	}
 }

@@ -21,14 +21,14 @@ var dataHourAngle = []struct {
 
 func TestHourAngle(t *testing.T) {
 	for _, tt := range dataHourAngle {
-		v := HourAngle(tt.inLatitude, tt.inDeclination)
+		v := hourAngle(tt.inLatitude, tt.inDeclination)
 		if Round(v, DefaultPlaces) != Round(tt.out, DefaultPlaces) {
 			t.Fatalf("%f != %f", v, tt.out)
 		}
 	}
 }
 
-// TestHourAngle_SunNeverRises tests the polar night case where the sun never rises.
+// TesthourAngle_SunNeverRises tests the polar night case where the sun never rises.
 // This occurs when numerator/denominator > 1, typically in polar regions during winter.
 func TestHourAngle_SunNeverRises(t *testing.T) {
 	// Arctic winter: high latitude with negative declination (sun south of equator)
@@ -36,14 +36,14 @@ func TestHourAngle_SunNeverRises(t *testing.T) {
 	latitude := 75.0     // Far north latitude
 	declination := -20.0 // Sun is south of equator (winter)
 
-	result := HourAngle(latitude, declination)
+	result := hourAngle(latitude, declination)
 
 	if result != math.MaxFloat64 {
 		t.Errorf("Expected math.MaxFloat64 for sun never rising, got %v", result)
 	}
 }
 
-// TestHourAngle_SunNeverSets tests the midnight sun case where the sun never sets.
+// TesthourAngle_SunNeverSets tests the midnight sun case where the sun never sets.
 // This occurs when numerator/denominator < -1, typically in polar regions during summer.
 func TestHourAngle_SunNeverSets(t *testing.T) {
 	// Arctic summer: high latitude with positive declination (sun north of equator)
@@ -51,7 +51,7 @@ func TestHourAngle_SunNeverSets(t *testing.T) {
 	latitude := 75.0    // Far north latitude
 	declination := 20.0 // Sun is north of equator (summer)
 
-	result := HourAngle(latitude, declination)
+	result := hourAngle(latitude, declination)
 
 	if result != -1*math.MaxFloat64 {
 		t.Errorf("Expected -1*math.MaxFloat64 for sun never setting, got %v", result)

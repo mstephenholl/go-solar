@@ -4,11 +4,35 @@ import (
 	"time"
 )
 
-// MeanSolarNoon calculates the time at which the sun is at its highest
-// altitude. The returned time is in Julian days.
-func MeanSolarNoon(longitude float64, year int, month time.Month, day int) float64 {
+// meanSolarNoonInternal calculates the time at which the sun is at its highest
+// altitude. The returned time is in Julian days. This is an internal function.
+func meanSolarNoonInternal(longitude float64, year int, month time.Month, day int) float64 {
 	t := time.Date(year, month, day, 12, 0, 0, 0, time.UTC)
 	return TimeToJulianDay(t) - longitude/LongitudeDivisor
+}
+
+// MeanSolarNoon calculates the time at which the sun is at its highest altitude
+// (solar noon) for the given location and date.
+//
+// All times are calculated and returned in UTC. To convert to local time, use
+// time.In() with the appropriate timezone.
+//
+// Parameters:
+//   - loc: Location created via NewLocation() or NewLocationFromNMEA()
+//   - t: Time created via NewTime(), NewTimeFromDateTime(), or NewTimeFromNMEA()
+//
+// Returns:
+//   - Solar noon time in UTC
+//
+// Example:
+//
+//	loc := solar.NewLocation(43.65, -79.38)
+//	t := solar.NewTime(2024, time.June, 21)
+//	noon := solar.MeanSolarNoon(loc, t)
+//	// noon is in UTC - convert to local time if needed
+func MeanSolarNoon(loc Location, t Time) time.Time {
+	jd := meanSolarNoonInternal(loc.Longitude(), t.Year(), t.Month(), t.Day())
+	return JulianDayToTime(jd)
 }
 
 // MeanSolarNoonFromNMEA calculates the time at which the sun is at its highest
@@ -39,20 +63,19 @@ func MeanSolarNoon(longitude float64, year int, month time.Month, day int) float
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	fmt.Printf("Solar noon: %s\n", solarNoon.Format("15:04:05 MST"))
 //
 //	// Using GGA sentence (requires external date)
 //	solarNoon, err = solar.MeanSolarNoonFromNMEA("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*5C", 2024, time.June, 21)
 func MeanSolarNoonFromNMEA(nmea string, year int, month time.Month, day int) (time.Time, error) {
-	pos, err := parseNMEA(nmea, year, month, day)
+	loc, err := NewLocationFromNMEA(nmea, year, month, day)
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	// Calculate mean solar noon in Julian days
-	jd := MeanSolarNoon(pos.Longitude, pos.Time.Year(), pos.Time.Month(), pos.Time.Day())
+	t, err := NewTimeFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return time.Time{}, err
+	}
 
-	// Convert back to time.Time
-	solarNoon := JulianDayToTime(jd)
-	return solarNoon, nil
+	return MeanSolarNoon(loc, t), nil
 }

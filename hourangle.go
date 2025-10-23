@@ -4,9 +4,9 @@ import (
 	"math"
 )
 
-// HourAngle calculates the second of the two angles required to locate a point
+// hourAngle calculates the second of the two angles required to locate a point
 // on the celestial sphere in the equatorial coordinate system.
-func HourAngle(latitude, declination float64) float64 {
+func hourAngle(latitude, declination float64) float64 {
 	var (
 		latitudeRad    = latitude * Degree
 		declinationRad = declination * Degree

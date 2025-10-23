@@ -21,7 +21,7 @@ var dataArgumentOfPerihelion = []struct {
 
 func TestArgumentOfPerihelion(t *testing.T) {
 	for _, tt := range dataArgumentOfPerihelion {
-		v := ArgumentOfPerihelion(tt.in)
+		v := argumentOfPerihelion(tt.in)
 		if Round(v, DefaultPlaces) != Round(tt.out, DefaultPlaces) {
 			t.Fatalf("%f != %f", v, tt.out)
 		}

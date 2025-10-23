@@ -18,7 +18,7 @@ var dataDeclination = []struct {
 
 func TestDeclination(t *testing.T) {
 	for _, tt := range dataDeclination {
-		v := Declination(tt.in)
+		v := declination(tt.in)
 		if Round(v, DefaultPlaces) != Round(tt.out, DefaultPlaces) {
 			t.Fatalf("%f != %f", v, tt.out)
 		}

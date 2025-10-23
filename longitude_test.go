@@ -20,7 +20,7 @@ var dataEclipticLongitude = []struct {
 
 func TestEclipticLongitude(t *testing.T) {
 	for _, tt := range dataEclipticLongitude {
-		v := EclipticLongitude(tt.inAnomaly, tt.inCenter, tt.inSolarNoon)
+		v := eclipticLongitude(tt.inAnomaly, tt.inCenter, tt.inSolarNoon)
 		if Round(v, DefaultPlaces) != Round(tt.out, DefaultPlaces) {
 			t.Fatalf("%f != %f", v, tt.out)
 		}

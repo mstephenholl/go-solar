@@ -10,12 +10,18 @@ import (
 // ExampleSunrise demonstrates calculating just the sunrise time
 // for Toronto, Canada on January 1, 2000.
 func ExampleSunrise() {
-	// Toronto coordinates
-	latitude := 43.65
-	longitude := -79.38
+	// Create location for Toronto
+	loc := solar.NewLocation(43.65, -79.38)
 
-	// Calculate sunrise for January 1, 2000
-	rise := solar.Sunrise(latitude, longitude, 2000, time.January, 1)
+	// Create time for January 1, 2000
+	t := solar.NewTime(2000, time.January, 1)
+
+	// Calculate sunrise
+	rise, err := solar.Sunrise(loc, t)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
 	fmt.Printf("Sunrise: %s\n", rise.Format("15:04:05 MST"))
 	// Output:
@@ -25,12 +31,18 @@ func ExampleSunrise() {
 // ExampleSunset demonstrates calculating just the sunset time
 // for Toronto, Canada on January 1, 2000.
 func ExampleSunset() {
-	// Toronto coordinates
-	latitude := 43.65
-	longitude := -79.38
+	// Create location for Toronto
+	loc := solar.NewLocation(43.65, -79.38)
 
-	// Calculate sunset for January 1, 2000
-	set := solar.Sunset(latitude, longitude, 2000, time.January, 1)
+	// Create time for January 1, 2000
+	t := solar.NewTime(2000, time.January, 1)
+
+	// Calculate sunset
+	set, err := solar.Sunset(loc, t)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
 	fmt.Printf("Sunset: %s\n", set.Format("15:04:05 MST"))
 	// Output:
@@ -40,12 +52,18 @@ func ExampleSunset() {
 // ExampleSunriseSunset demonstrates basic sunrise and sunset calculation
 // for Toronto, Canada on January 1, 2000.
 func ExampleSunriseSunset() {
-	// Toronto coordinates
-	latitude := 43.65
-	longitude := -79.38
+	// Create location for Toronto
+	loc := solar.NewLocation(43.65, -79.38)
 
-	// Calculate sunrise and sunset for January 1, 2000
-	rise, set := solar.SunriseSunset(latitude, longitude, 2000, time.January, 1)
+	// Create time for January 1, 2000
+	t := solar.NewTime(2000, time.January, 1)
+
+	// Calculate sunrise and sunset
+	rise, set, err := solar.SunriseSunset(loc, t)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
 
 	fmt.Printf("Sunrise: %s\n", rise.Format("15:04:05 MST"))
 	fmt.Printf("Sunset: %s\n", set.Format("15:04:05 MST"))
@@ -57,14 +75,17 @@ func ExampleSunriseSunset() {
 // ExampleSunriseSunset_polarNight demonstrates the case where the sun
 // never rises (polar night).
 func ExampleSunriseSunset_polarNight() {
-	// Igloolik, Nunavut during polar night
-	latitude := 69.3321443
-	longitude := -81.6781126
+	// Create location for Igloolik, Nunavut
+	loc := solar.NewLocation(69.3321443, -81.6781126)
 
-	rise, set := solar.SunriseSunset(latitude, longitude, 2020, time.June, 25)
+	// Create time for June 25, 2020 (midnight sun period)
+	t := solar.NewTime(2020, time.June, 25)
 
-	// Check for no sunrise/sunset
-	if rise.IsZero() && set.IsZero() {
+	// Calculate sunrise and sunset
+	_, _, err := solar.SunriseSunset(loc, t)
+
+	// Check for error (sun never rises or sets)
+	if err != nil {
 		fmt.Println("The sun does not rise or set on this day")
 	}
 	// Output:
@@ -74,13 +95,12 @@ func ExampleSunriseSunset_polarNight() {
 // ExampleElevation demonstrates calculating the sun's elevation angle
 // at a specific time and location.
 func ExampleElevation() {
-	// New York City coordinates
-	latitude := 40.7128
-	longitude := -74.0060
+	// Create location for New York City
+	loc := solar.NewLocation(40.7128, -74.0060)
 
 	// Check sun elevation at noon UTC on summer solstice
 	when := time.Date(2022, time.June, 21, 12, 0, 0, 0, time.UTC)
-	elevation := solar.Elevation(latitude, longitude, when)
+	elevation := solar.Elevation(loc, when)
 
 	fmt.Printf("Sun elevation: %.1f degrees\n", elevation)
 	// Output:
@@ -90,12 +110,12 @@ func ExampleElevation() {
 // ExampleTimeOfElevation demonstrates finding when the sun reaches
 // a specific elevation angle.
 func ExampleTimeOfElevation() {
-	// London coordinates
-	latitude := 51.5072
-	longitude := -0.1276
+	// Create location for London
+	loc := solar.NewLocation(51.5072, -0.1276)
+	t := solar.NewTime(2022, time.June, 21)
 
 	// Find when sun is at 10 degrees above horizon
-	morning, evening := solar.TimeOfElevation(latitude, longitude, 10.0, 2022, time.June, 21)
+	morning, evening := solar.TimeOfElevation(loc, 10.0, t)
 
 	fmt.Printf("Morning: %s\n", morning.Format("15:04 MST"))
 	fmt.Printf("Evening: %s\n", evening.Format("15:04 MST"))
@@ -199,13 +219,12 @@ func ExampleRadiansToDegrees() {
 // ExampleAzimuth demonstrates calculating the solar azimuth angle.
 // The azimuth is the sun's compass direction measured clockwise from north.
 func ExampleAzimuth() {
-	// Toronto coordinates
-	latitude := 43.65
-	longitude := -79.38
+	// Create location for Toronto
+	loc := solar.NewLocation(43.65, -79.38)
 
 	// Calculate azimuth for January 1, 2000 at 5:00 PM UTC (noon local time)
 	when := time.Date(2000, time.January, 1, 17, 0, 0, 0, time.UTC)
-	azimuth := solar.Azimuth(latitude, longitude, when)
+	azimuth := solar.Azimuth(loc, when)
 
 	fmt.Printf("Azimuth: %.1f degrees (South)\n", azimuth)
 	// Output:
@@ -215,11 +234,11 @@ func ExampleAzimuth() {
 // ExampleDawn demonstrates calculating civil dawn (beginning of morning twilight).
 func ExampleDawn() {
 	// Toronto coordinates
-	latitude := 43.65
-	longitude := -79.38
+	loc := solar.NewLocation(43.65, -79.38)
+	t := solar.NewTime(2000, time.January, 1)
 
-	// Calculate civil dawn for January 1, 2000 (default)
-	dawn := solar.Dawn(latitude, longitude, 2000, time.January, 1)
+	// Calculate civil dawn (default)
+	dawn := solar.Dawn(loc, t)
 
 	fmt.Printf("Civil dawn: %s\n", dawn.Format("15:04 MST"))
 	// Output:
@@ -229,11 +248,11 @@ func ExampleDawn() {
 // ExampleDusk demonstrates calculating civil dusk (end of evening twilight).
 func ExampleDusk() {
 	// Toronto coordinates
-	latitude := 43.65
-	longitude := -79.38
+	loc := solar.NewLocation(43.65, -79.38)
+	t := solar.NewTime(2000, time.January, 1)
 
-	// Calculate civil dusk for January 1, 2000 (default)
-	dusk := solar.Dusk(latitude, longitude, 2000, time.January, 1)
+	// Calculate civil dusk (default)
+	dusk := solar.Dusk(loc, t)
 
 	fmt.Printf("Civil dusk: %s\n", dusk.Format("15:04 MST"))
 	// Output:
@@ -243,11 +262,11 @@ func ExampleDusk() {
 // ExampleDawnDusk demonstrates calculating both dawn and dusk times.
 func ExampleDawnDusk() {
 	// Toronto coordinates
-	latitude := 43.65
-	longitude := -79.38
+	loc := solar.NewLocation(43.65, -79.38)
+	t := solar.NewTime(2000, time.January, 1)
 
-	// Calculate civil dawn and dusk for January 1, 2000
-	dawn, dusk := solar.DawnDusk(latitude, longitude, 2000, time.January, 1)
+	// Calculate civil dawn and dusk
+	dawn, dusk := solar.DawnDusk(loc, t)
 
 	fmt.Printf("Dawn: %s\n", dawn.Format("15:04 MST"))
 	fmt.Printf("Dusk: %s\n", dusk.Format("15:04 MST"))
@@ -259,11 +278,11 @@ func ExampleDawnDusk() {
 // ExampleDawn_nautical demonstrates calculating nautical dawn.
 func ExampleDawn_nautical() {
 	// Toronto coordinates
-	latitude := 43.65
-	longitude := -79.38
+	loc := solar.NewLocation(43.65, -79.38)
+	t := solar.NewTime(2000, time.January, 1)
 
 	// Calculate nautical dawn (sun at -12° below horizon)
-	nauticalDawn := solar.Dawn(latitude, longitude, 2000, time.January, 1, solar.Nautical)
+	nauticalDawn := solar.Dawn(loc, t, solar.Nautical)
 
 	fmt.Printf("Nautical dawn: %s\n", nauticalDawn.Format("15:04 MST"))
 	// Output:
@@ -273,11 +292,11 @@ func ExampleDawn_nautical() {
 // ExampleDawnDusk_astronomical demonstrates calculating astronomical twilight.
 func ExampleDawnDusk_astronomical() {
 	// Toronto coordinates
-	latitude := 43.65
-	longitude := -79.38
+	loc := solar.NewLocation(43.65, -79.38)
+	t := solar.NewTime(2000, time.January, 1)
 
 	// Calculate astronomical dawn and dusk (sun at -18° below horizon)
-	dawn, dusk := solar.DawnDusk(latitude, longitude, 2000, time.January, 1, solar.Astronomical)
+	dawn, dusk := solar.DawnDusk(loc, t, solar.Astronomical)
 
 	fmt.Printf("Astronomical dawn: %s\n", dawn.Format("15:04 MST"))
 	fmt.Printf("Astronomical dusk: %s\n", dusk.Format("15:04 MST"))

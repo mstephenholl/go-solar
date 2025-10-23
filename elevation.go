@@ -5,41 +5,15 @@ import (
 	"time"
 )
 
-// TimeOfElevation calculates the times of day when the sun is at a given elevation
-// above the horizon on a given day at the specified location.
-//
-// All times are calculated and returned in UTC. The input date (year, month, day) is
-// interpreted as UTC. Useful for calculating twilight times, golden hour, etc.
-//
-// Common elevation angles:
-//   - -0.833°: Official sunrise/sunset (accounts for atmospheric refraction)
-//   - -6°: Civil twilight
-//   - -12°: Nautical twilight
-//   - -18°: Astronomical twilight
-//   - 6°: Golden hour
-//
-// Parameters:
-//   - latitude: Latitude in decimal degrees (-90 to +90, negative for South)
-//   - longitude: Longitude in decimal degrees (-180 to +180, negative for West)
-//   - elevation: Solar elevation angle in degrees (negative for below horizon)
-//   - year, month, day: The date in UTC for which to calculate times
-//
-// Returns:
-//   - morning: Time in UTC when sun reaches elevation in the morning (time.Time{} if never reached)
-//   - evening: Time in UTC when sun reaches elevation in the evening (time.Time{} if never reached)
-//
-// Example:
-//
-//	// Calculate civil twilight times
-//	morning, evening := solar.TimeOfElevation(40.7128, -74.0060, -6.0, 2024, time.June, 21)
-func TimeOfElevation(latitude, longitude, elevation float64, year int, month time.Month, day int) (morning, evening time.Time) {
+// timeOfElevationInternal is the internal implementation with old signature
+func timeOfElevationInternal(latitude, longitude, elevation float64, year int, month time.Month, day int) (morning, evening time.Time) {
 	var (
-		d                 = MeanSolarNoon(longitude, year, month, day)
-		meanAnomaly       = MeanAnomaly(d)
-		equationOfCenter  = EquationOfCenter(meanAnomaly)
-		eclipticLongitude = EclipticLongitude(meanAnomaly, equationOfCenter, d)
-		transit           = Transit(d, meanAnomaly, eclipticLongitude)
-		declination       = Declination(eclipticLongitude)
+		d                 = meanSolarNoonInternal(longitude, year, month, day)
+		meanAnomaly       = meanAnomaly(d)
+		equationOfCenter  = equationOfCenter(meanAnomaly)
+		eclipticLongitude = eclipticLongitude(meanAnomaly, equationOfCenter, d)
+		transit           = transit(d, meanAnomaly, eclipticLongitude)
+		declination       = declination(eclipticLongitude)
 		// https://solarsena.com/solar-elevation-angle-altitude/
 		numerator   = math.Sin(elevation*Degree) - (math.Sin(latitude*Degree) * math.Sin(declination*Degree))
 		denominator = math.Cos(latitude*Degree) * math.Cos(declination*Degree)
@@ -59,33 +33,47 @@ func TimeOfElevation(latitude, longitude, elevation float64, year int, month tim
 	return morning, evening
 }
 
-// Elevation calculates the angle of the sun above the horizon at a given moment
-// at the specified location.
+// TimeOfElevation calculates the times of day when the sun is at a given elevation
+// above the horizon on a given day at the specified location.
 //
-// The time parameter should be in UTC. If you have a local time, convert it to UTC first
-// using time.UTC() or time.In(time.UTC).
+// All times are calculated and returned in UTC. Useful for calculating twilight times,
+// golden hour, etc.
+//
+// Common elevation angles:
+//   - -0.833°: Official sunrise/sunset (accounts for atmospheric refraction)
+//   - -6°: Civil twilight
+//   - -12°: Nautical twilight
+//   - -18°: Astronomical twilight
+//   - 6°: Golden hour
 //
 // Parameters:
-//   - latitude: Latitude in decimal degrees (-90 to +90, negative for South)
-//   - longitude: Longitude in decimal degrees (-180 to +180, negative for West)
-//   - when: The moment in time to calculate elevation (in UTC)
+//   - loc: Location created via NewLocation() or NewLocationFromNMEA()
+//   - elevation: Solar elevation angle in degrees (negative for below horizon)
+//   - t: Time created via NewTime(), NewTimeFromDateTime(), or NewTimeFromNMEA()
 //
 // Returns:
-//   - Solar elevation angle in degrees (positive above horizon, negative below)
+//   - morning: Time in UTC when sun reaches elevation in the morning (time.Time{} if never reached)
+//   - evening: Time in UTC when sun reaches elevation in the evening (time.Time{} if never reached)
 //
 // Example:
 //
-//	// Calculate current sun elevation
-//	elevation := solar.Elevation(40.7128, -74.0060, time.Now().UTC())
-//	fmt.Printf("Sun is %.2f degrees above horizon\n", elevation)
-func Elevation(latitude, longitude float64, when time.Time) float64 {
+//	loc := solar.NewLocation(40.7128, -74.0060)
+//	t := solar.NewTime(2024, time.June, 21)
+//	// Calculate civil twilight times
+//	morning, evening := solar.TimeOfElevation(loc, -6.0, t)
+func TimeOfElevation(loc Location, elevation float64, t Time) (morning, evening time.Time) {
+	return timeOfElevationInternal(loc.Latitude(), loc.Longitude(), elevation, t.Year(), t.Month(), t.Day())
+}
+
+// elevationInternal is the internal implementation with old signature
+func elevationInternal(latitude, longitude float64, when time.Time) float64 {
 	var (
-		d                 = MeanSolarNoon(longitude, when.Year(), when.Month(), when.Day())
-		meanAnomaly       = MeanAnomaly(d)
-		equationOfCenter  = EquationOfCenter(meanAnomaly)
-		eclipticLongitude = EclipticLongitude(meanAnomaly, equationOfCenter, d)
-		transit           = Transit(d, meanAnomaly, eclipticLongitude)
-		declination       = Declination(eclipticLongitude)
+		d                 = meanSolarNoonInternal(longitude, when.Year(), when.Month(), when.Day())
+		meanAnomaly       = meanAnomaly(d)
+		equationOfCenter  = equationOfCenter(meanAnomaly)
+		eclipticLongitude = eclipticLongitude(meanAnomaly, equationOfCenter, d)
+		transit           = transit(d, meanAnomaly, eclipticLongitude)
+		declination       = declination(eclipticLongitude)
 		frac              = transit - TimeToJulianDay(when)
 		hourAngle         = 2 * math.Pi * frac
 		// https://solarsena.com/solar-elevation-angle-altitude/
@@ -94,6 +82,28 @@ func Elevation(latitude, longitude float64, when time.Time) float64 {
 	)
 
 	return math.Asin(firstPart+secondPart) / Degree
+}
+
+// Elevation calculates the angle of the sun above the horizon at a given moment
+// at the specified location.
+//
+// The time parameter should be in UTC. If you have a local time, convert it to UTC first
+// using time.UTC() or time.In(time.UTC).
+//
+// Parameters:
+//   - loc: Location created via NewLocation() or NewLocationFromNMEA()
+//   - when: The moment in time to calculate elevation (in UTC)
+//
+// Returns:
+//   - Solar elevation angle in degrees (positive above horizon, negative below)
+//
+// Example:
+//
+//	loc := solar.NewLocation(40.7128, -74.0060)
+//	elevation := solar.Elevation(loc, time.Now().UTC())
+//	// elevation is in degrees, positive above horizon, negative below
+func Elevation(loc Location, when time.Time) float64 {
+	return elevationInternal(loc.Latitude(), loc.Longitude(), when)
 }
 
 // ElevationFromNMEA calculates the solar elevation angle at the location and time
@@ -124,17 +134,21 @@ func Elevation(latitude, longitude float64, when time.Time) float64 {
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	fmt.Printf("Solar elevation: %.2f degrees\n", elevation)
 //
 //	// Using GGA sentence (requires external date)
 //	elevation, err = solar.ElevationFromNMEA("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*5C", 2024, time.June, 21)
 func ElevationFromNMEA(nmea string, year int, month time.Month, day int) (float64, error) {
-	pos, err := parseNMEA(nmea, year, month, day)
+	loc, err := NewLocationFromNMEA(nmea, year, month, day)
 	if err != nil {
 		return 0, err
 	}
 
-	elevation := Elevation(pos.Latitude, pos.Longitude, pos.Time)
+	t, err := NewTimeFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return 0, err
+	}
+
+	elevation := Elevation(loc, t.DateTime())
 	return elevation, nil
 }
 
@@ -179,7 +193,6 @@ func ElevationFromNMEA(nmea string, year int, month time.Month, day int) (float6
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	fmt.Printf("Civil twilight: %s - %s\n", morning.Format("15:04"), evening.Format("15:04"))
 //
 //	// Using GGA sentence (requires external date)
 //	morning, evening, err = solar.TimeOfElevationFromNMEA(
@@ -188,11 +201,16 @@ func ElevationFromNMEA(nmea string, year int, month time.Month, day int) (float6
 //	    2024, time.June, 21,
 //	)
 func TimeOfElevationFromNMEA(nmea string, elevation float64, year int, month time.Month, day int) (time.Time, time.Time, error) {
-	pos, err := parseNMEA(nmea, year, month, day)
+	loc, err := NewLocationFromNMEA(nmea, year, month, day)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
 
-	morning, evening := TimeOfElevation(pos.Latitude, pos.Longitude, elevation, pos.Time.Year(), pos.Time.Month(), pos.Time.Day())
+	t, err := NewTimeFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+
+	morning, evening := TimeOfElevation(loc, elevation, t)
 	return morning, evening, nil
 }

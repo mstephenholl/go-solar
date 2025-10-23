@@ -18,19 +18,19 @@ var dataMeanAnomaly = []struct {
 
 func TestMeanAnomaly(t *testing.T) {
 	for _, tt := range dataMeanAnomaly {
-		v := MeanAnomaly(tt.in)
+		v := meanAnomaly(tt.in)
 		if Round(v, DefaultPlaces) != Round(tt.out, DefaultPlaces) {
 			t.Fatalf("%f != %f", v, tt.out)
 		}
 	}
 }
 
-// Benchmark for MeanAnomaly function
+// Benchmark for meanAnomaly function
 func BenchmarkMeanAnomaly(b *testing.B) {
 	d := 2451545.0 // J2000 epoch
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = MeanAnomaly(d)
+		_ = meanAnomaly(d)
 	}
 }

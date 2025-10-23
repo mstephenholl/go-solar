@@ -25,8 +25,8 @@ var (
 	ErrInvalidDate = errors.New("invalid date/time data")
 )
 
-// NMEAPosition holds the parsed position and time data from an NMEA sentence.
-type NMEAPosition struct {
+// nmeaPosition holds the parsed position and time data from an NMEA sentence.
+type nmeaPosition struct {
 	Latitude  float64
 	Longitude float64
 	Time      time.Time
@@ -62,13 +62,17 @@ type NMEAPosition struct {
 //	// Using GGA sentence (requires date)
 //	sunrise, err := solar.SunriseFromNMEA("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47", 2024, time.June, 21)
 func SunriseFromNMEA(nmea string, year int, month time.Month, day int) (time.Time, error) {
-	pos, err := parseNMEA(nmea, year, month, day)
+	loc, err := NewLocationFromNMEA(nmea, year, month, day)
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	sunrise := Sunrise(pos.Latitude, pos.Longitude, pos.Time.Year(), pos.Time.Month(), pos.Time.Day())
-	return sunrise, nil
+	t, err := NewTimeFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return Sunrise(loc, t)
 }
 
 // SunsetFromNMEA calculates the sunset time for the location and date encoded
@@ -101,13 +105,17 @@ func SunriseFromNMEA(nmea string, year int, month time.Month, day int) (time.Tim
 //	// Using GGA sentence (requires date)
 //	sunset, err := solar.SunsetFromNMEA("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47", 2024, time.June, 21)
 func SunsetFromNMEA(nmea string, year int, month time.Month, day int) (time.Time, error) {
-	pos, err := parseNMEA(nmea, year, month, day)
+	loc, err := NewLocationFromNMEA(nmea, year, month, day)
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	sunset := Sunset(pos.Latitude, pos.Longitude, pos.Time.Year(), pos.Time.Month(), pos.Time.Day())
-	return sunset, nil
+	t, err := NewTimeFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return Sunset(loc, t)
 }
 
 // SunriseSunsetFromNMEA calculates both sunrise and sunset times for the location
@@ -141,29 +149,33 @@ func SunsetFromNMEA(nmea string, year int, month time.Month, day int) (time.Time
 //	// Using GGA sentence (requires date)
 //	sunrise, sunset, err := solar.SunriseSunsetFromNMEA("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47", 2024, time.June, 21)
 func SunriseSunsetFromNMEA(nmea string, year int, month time.Month, day int) (time.Time, time.Time, error) {
-	pos, err := parseNMEA(nmea, year, month, day)
+	loc, err := NewLocationFromNMEA(nmea, year, month, day)
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
 
-	sunrise, sunset := SunriseSunset(pos.Latitude, pos.Longitude, pos.Time.Year(), pos.Time.Month(), pos.Time.Day())
-	return sunrise, sunset, nil
+	t, err := NewTimeFromNMEA(nmea, year, month, day)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+
+	return SunriseSunset(loc, t)
 }
 
 // parseNMEA parses an NMEA sentence and extracts position and date information.
-func parseNMEA(nmea string, year int, month time.Month, day int) (NMEAPosition, error) {
+func parseNMEA(nmea string, year int, month time.Month, day int) (nmeaPosition, error) {
 	// Remove leading/trailing whitespace
 	nmea = strings.TrimSpace(nmea)
 
 	// NMEA sentences must start with $
 	if !strings.HasPrefix(nmea, "$") {
-		return NMEAPosition{}, fmt.Errorf("%w: missing $ prefix", ErrInvalidNMEA)
+		return nmeaPosition{}, fmt.Errorf("%w: missing $ prefix", ErrInvalidNMEA)
 	}
 
 	// Split into sentence and checksum
 	parts := strings.Split(nmea[1:], "*")
 	if len(parts) != 2 {
-		return NMEAPosition{}, fmt.Errorf("%w: missing or invalid checksum", ErrInvalidNMEA)
+		return nmeaPosition{}, fmt.Errorf("%w: missing or invalid checksum", ErrInvalidNMEA)
 	}
 
 	sentence := parts[0]
@@ -171,19 +183,19 @@ func parseNMEA(nmea string, year int, month time.Month, day int) (NMEAPosition, 
 
 	// Validate checksum
 	if err := validateChecksum(sentence, checksumStr); err != nil {
-		return NMEAPosition{}, err
+		return nmeaPosition{}, err
 	}
 
 	// Split sentence into fields
 	fields := strings.Split(sentence, ",")
 	if len(fields) < 2 {
-		return NMEAPosition{}, fmt.Errorf("%w: insufficient fields", ErrInvalidNMEA)
+		return nmeaPosition{}, fmt.Errorf("%w: insufficient fields", ErrInvalidNMEA)
 	}
 
 	// Determine sentence type (last 3 characters of talker+sentence ID)
 	sentenceType := fields[0]
 	if len(sentenceType) < 3 {
-		return NMEAPosition{}, fmt.Errorf("%w: invalid sentence type", ErrInvalidNMEA)
+		return nmeaPosition{}, fmt.Errorf("%w: invalid sentence type", ErrInvalidNMEA)
 	}
 	sentenceType = sentenceType[len(sentenceType)-3:]
 
@@ -194,7 +206,7 @@ func parseNMEA(nmea string, year int, month time.Month, day int) (NMEAPosition, 
 	case "RMC":
 		return parseRMC(fields)
 	default:
-		return NMEAPosition{}, fmt.Errorf("%w: %s (supported: GGA, RMC)", ErrUnsupportedSentence, sentenceType)
+		return nmeaPosition{}, fmt.Errorf("%w: %s (supported: GGA, RMC)", ErrUnsupportedSentence, sentenceType)
 	}
 }
 
@@ -221,36 +233,36 @@ func validateChecksum(sentence, checksumStr string) error {
 
 // parseGGA parses a GGA (GPS Fix Data) sentence.
 // Format: $--GGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx
-func parseGGA(fields []string, year int, month time.Month, day int) (NMEAPosition, error) {
+func parseGGA(fields []string, year int, month time.Month, day int) (nmeaPosition, error) {
 	if len(fields) < 7 {
-		return NMEAPosition{}, fmt.Errorf("%w: GGA sentence too short", ErrInvalidNMEA)
+		return nmeaPosition{}, fmt.Errorf("%w: GGA sentence too short", ErrInvalidNMEA)
 	}
 
 	// GGA requires external date
 	if year == 0 || month == 0 || day == 0 {
-		return NMEAPosition{}, fmt.Errorf("%w: GGA sentence requires date parameter", ErrInvalidDate)
+		return nmeaPosition{}, fmt.Errorf("%w: GGA sentence requires date parameter", ErrInvalidDate)
 	}
 
 	// Parse time (field 1)
 	timeStr := fields[1]
 	parsedTime, err := parseNMEATime(timeStr, year, month, day)
 	if err != nil {
-		return NMEAPosition{}, err
+		return nmeaPosition{}, err
 	}
 
 	// Parse latitude (fields 2-3)
 	lat, err := parseLatitude(fields[2], fields[3])
 	if err != nil {
-		return NMEAPosition{}, err
+		return nmeaPosition{}, err
 	}
 
 	// Parse longitude (fields 4-5)
 	lon, err := parseLongitude(fields[4], fields[5])
 	if err != nil {
-		return NMEAPosition{}, err
+		return nmeaPosition{}, err
 	}
 
-	return NMEAPosition{
+	return nmeaPosition{
 		Latitude:  lat,
 		Longitude: lon,
 		Time:      parsedTime,
@@ -259,35 +271,35 @@ func parseGGA(fields []string, year int, month time.Month, day int) (NMEAPositio
 
 // parseRMC parses an RMC (Recommended Minimum) sentence.
 // Format: $--RMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,ddmmyy,x.x,a
-func parseRMC(fields []string) (NMEAPosition, error) {
+func parseRMC(fields []string) (nmeaPosition, error) {
 	if len(fields) < 10 {
-		return NMEAPosition{}, fmt.Errorf("%w: RMC sentence too short", ErrInvalidNMEA)
+		return nmeaPosition{}, fmt.Errorf("%w: RMC sentence too short", ErrInvalidNMEA)
 	}
 
 	// Check status (field 2) - should be 'A' for valid
 	if fields[2] != "A" {
-		return NMEAPosition{}, fmt.Errorf("%w: invalid GPS fix (status: %s)", ErrInvalidNMEA, fields[2])
+		return nmeaPosition{}, fmt.Errorf("%w: invalid GPS fix (status: %s)", ErrInvalidNMEA, fields[2])
 	}
 
 	// Parse date (field 9) - ddmmyy format
 	dateStr := fields[9]
 	if len(dateStr) != 6 {
-		return NMEAPosition{}, fmt.Errorf("%w: invalid date format", ErrInvalidDate)
+		return nmeaPosition{}, fmt.Errorf("%w: invalid date format", ErrInvalidDate)
 	}
 
 	day, err := strconv.Atoi(dateStr[0:2])
 	if err != nil {
-		return NMEAPosition{}, fmt.Errorf("%w: invalid day", ErrInvalidDate)
+		return nmeaPosition{}, fmt.Errorf("%w: invalid day", ErrInvalidDate)
 	}
 
 	monthInt, err := strconv.Atoi(dateStr[2:4])
 	if err != nil {
-		return NMEAPosition{}, fmt.Errorf("%w: invalid month", ErrInvalidDate)
+		return nmeaPosition{}, fmt.Errorf("%w: invalid month", ErrInvalidDate)
 	}
 
 	year, err := strconv.Atoi(dateStr[4:6])
 	if err != nil {
-		return NMEAPosition{}, fmt.Errorf("%w: invalid year", ErrInvalidDate)
+		return nmeaPosition{}, fmt.Errorf("%w: invalid year", ErrInvalidDate)
 	}
 	// Convert 2-digit year to 4-digit
 	// Years 00-49 are 2000-2049, years 50-99 are 1950-1999
@@ -301,22 +313,22 @@ func parseRMC(fields []string) (NMEAPosition, error) {
 	timeStr := fields[1]
 	parsedTime, err := parseNMEATime(timeStr, year, time.Month(monthInt), day)
 	if err != nil {
-		return NMEAPosition{}, err
+		return nmeaPosition{}, err
 	}
 
 	// Parse latitude (fields 3-4)
 	lat, err := parseLatitude(fields[3], fields[4])
 	if err != nil {
-		return NMEAPosition{}, err
+		return nmeaPosition{}, err
 	}
 
 	// Parse longitude (fields 5-6)
 	lon, err := parseLongitude(fields[5], fields[6])
 	if err != nil {
-		return NMEAPosition{}, err
+		return nmeaPosition{}, err
 	}
 
-	return NMEAPosition{
+	return nmeaPosition{
 		Latitude:  lat,
 		Longitude: lon,
 		Time:      parsedTime,

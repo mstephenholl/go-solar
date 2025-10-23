@@ -69,7 +69,8 @@ var dataAzimuth = []struct {
 func TestAzimuth(t *testing.T) {
 	for _, tt := range dataAzimuth {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Azimuth(tt.latitude, tt.longitude, tt.when)
+			loc := NewLocation(tt.latitude, tt.longitude)
+			result := Azimuth(loc, tt.when)
 			diff := math.Abs(result - tt.azimuth)
 			if diff > tt.tolerance {
 				t.Errorf("Azimuth() = %.2f, want %.2f (±%.2f), diff = %.2f",
@@ -83,12 +84,11 @@ func TestAzimuth(t *testing.T) {
 func TestAzimuth_Cardinals(t *testing.T) {
 	// Test at solar noon (should be close to south for northern hemisphere)
 	// Toronto on summer solstice at solar noon
-	latitude := 43.65
-	longitude := -79.38
+	loc := NewLocation(43.65, -79.38)
 	// Approximate solar noon for Toronto
 	when := time.Date(2024, time.June, 21, 17, 30, 0, 0, time.UTC)
 
-	azimuth := Azimuth(latitude, longitude, when)
+	azimuth := Azimuth(loc, when)
 
 	// At solar noon in northern hemisphere, sun should be roughly south (180°)
 	// Allow wide tolerance due to equation of time and location
@@ -100,13 +100,12 @@ func TestAzimuth_Cardinals(t *testing.T) {
 // TestAzimuth_Range tests that azimuth is always in valid range
 func TestAzimuth_Range(t *testing.T) {
 	// Test various times throughout the day
-	latitude := 43.65
-	longitude := -79.38
+	loc := NewLocation(43.65, -79.38)
 	date := time.Date(2024, time.June, 21, 0, 0, 0, 0, time.UTC)
 
 	for hour := 0; hour < 24; hour++ {
 		when := date.Add(time.Duration(hour) * time.Hour)
-		azimuth := Azimuth(latitude, longitude, when)
+		azimuth := Azimuth(loc, when)
 
 		// Azimuth should always be in range [0, 360)
 		if azimuth < 0 || azimuth >= 360 {
@@ -121,10 +120,12 @@ func TestAzimuth_Consistency(t *testing.T) {
 	when := time.Date(2024, time.March, 20, 12, 0, 0, 0, time.UTC) // Equinox
 
 	// Northern hemisphere
-	azimuthNorth := Azimuth(45.0, 0, when)
+	locNorth := NewLocation(45.0, 0)
+	azimuthNorth := Azimuth(locNorth, when)
 
 	// Southern hemisphere
-	azimuthSouth := Azimuth(-45.0, 0, when)
+	locSouth := NewLocation(-45.0, 0)
+	azimuthSouth := Azimuth(locSouth, when)
 
 	// Both should be valid
 	if azimuthNorth < 0 || azimuthNorth >= 360 {
@@ -145,9 +146,10 @@ func TestAzimuth_Consistency(t *testing.T) {
 func TestAzimuth_Equator(t *testing.T) {
 	// At equator on equinox, sunrise should be exactly east (90°)
 	// and sunset exactly west (270°)
+	loc := NewLocation(0, 0)
 	when := time.Date(2024, time.March, 20, 6, 0, 0, 0, time.UTC)
 
-	azimuth := Azimuth(0, 0, when)
+	azimuth := Azimuth(loc, when)
 
 	// Should be roughly east at sunrise on equinox
 	if azimuth < 80 || azimuth > 100 {
@@ -157,29 +159,28 @@ func TestAzimuth_Equator(t *testing.T) {
 
 // BenchmarkAzimuth benchmarks the azimuth calculation
 func BenchmarkAzimuth(b *testing.B) {
+	loc := NewLocation(43.65, -79.38)
 	when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Azimuth(43.65, -79.38, when)
+		_ = Azimuth(loc, when)
 	}
 }
 
 // BenchmarkAzimuth_MultipleLocations benchmarks azimuth across different locations
 func BenchmarkAzimuth_MultipleLocations(b *testing.B) {
-	locations := []struct {
-		lat, lon float64
-	}{
-		{43.65, -79.38},      // Toronto
-		{51.5072, -0.1276},   // London
-		{40.7128, -74.006},   // NYC
-		{-33.8688, 151.2093}, // Sydney
+	locations := []Location{
+		NewLocation(43.65, -79.38),      // Toronto
+		NewLocation(51.5072, -0.1276),   // London
+		NewLocation(40.7128, -74.006),   // NYC
+		NewLocation(-33.8688, 151.2093), // Sydney
 	}
 	when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		loc := locations[i%len(locations)]
-		_ = Azimuth(loc.lat, loc.lon, when)
+		_ = Azimuth(loc, when)
 	}
 }
 
@@ -286,8 +287,9 @@ func TestAzimuthFromNMEA_ConsistencyWithDirect(t *testing.T) {
 	}
 
 	// Calculate directly
+	loc := NewLocation(43.65, -79.38)
 	when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
-	azimuthDirect := Azimuth(43.65, -79.38, when)
+	azimuthDirect := Azimuth(loc, when)
 
 	// Should be very close (within 0.1 degrees)
 	diff := math.Abs(azimuthNMEA - azimuthDirect)

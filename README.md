@@ -19,7 +19,7 @@ A modern, well-tested Go package for calculating sunrise, sunset, and solar elev
 - 🛰️ Parse NMEA GPS sentences (GGA, RMC) for location-based calculations
 - 🌍 Handle edge cases (polar night, midnight sun)
 - 🚀 High performance with zero allocations for core functions
-- ✅ 100% test coverage on production code
+- ✅ 94%+ test coverage on production code
 - 🔧 Generic helper functions (Go 1.18+)
 - 📚 Comprehensive documentation and examples
 
@@ -40,68 +40,110 @@ package main
 
 import (
     "fmt"
+    "log"
     "time"
 
     "github.com/mstephenholl/go-solar"
 )
 
 func main() {
-    // Toronto coordinates
-    latitude := 43.65
-    longitude := -79.38
+    // Create location for Toronto
+    loc := solar.NewLocation(43.65, -79.38)
 
-    // Calculate sunrise for January 1, 2000
-    rise := solar.Sunrise(latitude, longitude, 2000, time.January, 1)
-    fmt.Printf("Sunrise: %s\n", rise.Format("15:04:05 MST"))
+    // Create time for January 1, 2000
+    t := solar.NewTime(2000, time.January, 1)
+
+    // Calculate sunrise
+    sunrise, err := solar.Sunrise(loc, t)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Sunrise: %s\n", sunrise.Format("15:04:05 MST"))
     // Output: Sunrise: 12:51:00 UTC
 
-    // Calculate sunset for the same day
-    set := solar.Sunset(latitude, longitude, 2000, time.January, 1)
-    fmt.Printf("Sunset: %s\n", set.Format("15:04:05 MST"))
+    // Calculate sunset
+    sunset, err := solar.Sunset(loc, t)
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Printf("Sunset: %s\n", sunset.Format("15:04:05 MST"))
     // Output: Sunset: 21:50:36 UTC
 
-    // Or get both at once
-    rise, set = solar.SunriseSunset(latitude, longitude, 2000, time.January, 1)
+    // Or get both at once (more efficient)
+    sunrise, sunset, err = solar.SunriseSunset(loc, t)
+    if err != nil {
+        log.Fatal(err)
+    }
 }
 ```
 
 ## 📖 Usage Examples
 
-### Individual Sunrise or Sunset
+### Creating Locations and Times
 
 ```go
 import "github.com/mstephenholl/go-solar"
 
-latitude := 40.7128   // New York City
-longitude := -74.0060
+// Create a location from latitude and longitude
+loc := solar.NewLocation(40.7128, -74.0060) // New York City
+
+// Create a time from date components
+t := solar.NewTime(2024, time.June, 21)
+
+// Or create from a time.Time object
+now := time.Now()
+t := solar.NewTimeFromDateTime(now)
+```
+
+### Individual Sunrise or Sunset
+
+```go
+// Create location and time
+loc := solar.NewLocation(40.7128, -74.0060)
+t := solar.NewTime(2024, time.June, 21)
 
 // Get just sunrise
-rise := solar.Sunrise(latitude, longitude, 2024, time.June, 21)
-fmt.Printf("Sunrise: %s\n", rise.Format("15:04 MST"))
+sunrise, err := solar.Sunrise(loc, t)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Sunrise: %s\n", sunrise.Format("15:04 MST"))
 
 // Get just sunset
-set := solar.Sunset(latitude, longitude, 2024, time.June, 21)
-fmt.Printf("Sunset: %s\n", set.Format("15:04 MST"))
+sunset, err := solar.Sunset(loc, t)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Sunset: %s\n", sunset.Format("15:04 MST"))
 ```
 
 ### Both Sunrise and Sunset
 
 ```go
-// Calculate both at once (more efficient)
-rise, set := solar.SunriseSunset(latitude, longitude, 2024, time.June, 21)
+loc := solar.NewLocation(40.7128, -74.0060)
+t := solar.NewTime(2024, time.June, 21)
 
-// Check for special cases (polar regions)
-if rise.IsZero() && set.IsZero() {
-    fmt.Println("Sun does not rise or set on this day")
+// Calculate both at once (more efficient)
+sunrise, sunset, err := solar.SunriseSunset(loc, t)
+if err != nil {
+    // Handle polar region cases
+    if err == solar.ErrSunNeverRises {
+        fmt.Println("Polar night - sun never rises on this day")
+    } else if err == solar.ErrSunNeverSets {
+        fmt.Println("Midnight sun - sun never sets on this day")
+    }
+    return
 }
+fmt.Printf("Sunrise: %s, Sunset: %s\n", sunrise.Format("15:04"), sunset.Format("15:04"))
 ```
 
 ### Solar Elevation Angle
 
 ```go
 // Get sun's elevation at a specific time
+loc := solar.NewLocation(40.7128, -74.0060)
 when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
-elevation := solar.Elevation(latitude, longitude, when)
+elevation := solar.Elevation(loc, when)
 fmt.Printf("Sun elevation: %.2f degrees\n", elevation)
 ```
 
@@ -110,8 +152,9 @@ fmt.Printf("Sun elevation: %.2f degrees\n", elevation)
 ```go
 // Get sun's azimuth (compass direction) at a specific time
 // Azimuth: 0° = North, 90° = East, 180° = South, 270° = West
+loc := solar.NewLocation(40.7128, -74.0060)
 when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
-azimuth := solar.Azimuth(latitude, longitude, when)
+azimuth := solar.Azimuth(loc, when)
 fmt.Printf("Sun azimuth: %.2f degrees\n", azimuth)
 ```
 
@@ -120,19 +163,22 @@ fmt.Printf("Sun azimuth: %.2f degrees\n", azimuth)
 Calculate dawn and dusk using civil, nautical, or astronomical twilight definitions:
 
 ```go
+loc := solar.NewLocation(40.7128, -74.0060)
+t := solar.NewTime(2024, time.June, 21)
+
 // Calculate civil dawn and dusk (default, -6° sun angle)
-dawn, dusk := solar.DawnDusk(latitude, longitude, 2024, time.June, 21)
+dawn, dusk := solar.DawnDusk(loc, t)
 fmt.Printf("Dawn: %s, Dusk: %s\n", dawn.Format("15:04"), dusk.Format("15:04"))
 
 // Or get them individually
-dawn := solar.Dawn(latitude, longitude, 2024, time.June, 21)
-dusk := solar.Dusk(latitude, longitude, 2024, time.June, 21)
+dawn := solar.Dawn(loc, t)
+dusk := solar.Dusk(loc, t)
 
 // Nautical twilight (-12° sun angle, for marine navigation)
-dawn, dusk := solar.DawnDusk(latitude, longitude, 2024, time.June, 21, solar.Nautical)
+dawn, dusk := solar.DawnDusk(loc, t, solar.Nautical)
 
 // Astronomical twilight (-18° sun angle, for astronomy)
-dawn, dusk := solar.DawnDusk(latitude, longitude, 2024, time.June, 21, solar.Astronomical)
+dawn, dusk := solar.DawnDusk(loc, t, solar.Astronomical)
 ```
 
 **Twilight Types:**
@@ -143,17 +189,19 @@ dawn, dusk := solar.DawnDusk(latitude, longitude, 2024, time.June, 21, solar.Ast
 ### Custom Elevation Times
 
 ```go
-// Find when sun reaches a specific elevation (e.g., golden hour at -6°)
-morning, evening := solar.TimeOfElevation(
-    latitude, longitude,
-    -6.0,  // Elevation angle in degrees
-    2024, time.June, 21,
-)
+loc := solar.NewLocation(40.7128, -74.0060)
+t := solar.NewTime(2024, time.June, 21)
+
+// Find when sun reaches a specific elevation (e.g., golden hour at 6°)
+morning, evening := solar.TimeOfElevation(loc, 6.0, t)
+fmt.Printf("Golden hour: %s to %s\n", morning.Format("15:04"), evening.Format("15:04"))
 ```
 
 ### Working with NMEA GPS Sentences
 
-Calculate sunrise and sunset directly from NMEA 0183 GPS sentences (GGA or RMC):
+The package provides two ways to work with NMEA GPS data:
+
+#### Option 1: Using Convenience Functions (Recommended)
 
 ```go
 // Using RMC sentence (includes date)
@@ -176,6 +224,28 @@ fmt.Printf("Sunset: %s\n", sunset.Format("15:04 MST"))
 sunrise, sunset, err := solar.SunriseSunsetFromNMEA(nmea, 2024, time.June, 21)
 ```
 
+#### Option 2: Using Location/Time Constructors (More Flexible)
+
+```go
+nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*71"
+
+// Create Location and Time from NMEA
+loc, err := solar.NewLocationFromNMEA(nmea, 0, 0, 0)
+if err != nil {
+    log.Fatal(err)
+}
+
+t, err := solar.NewTimeFromNMEA(nmea, 0, 0, 0)
+if err != nil {
+    log.Fatal(err)
+}
+
+// Now use any solar function
+sunrise, err := solar.Sunrise(loc, t)
+dawn := solar.Dawn(loc, t, solar.Nautical)
+azimuth := solar.Azimuth(loc, t.DateTime())
+```
+
 **Supported NMEA sentence types:**
 - **RMC** (Recommended Minimum): Includes date, no external date needed
 - **GGA** (GPS Fix Data): Requires external date parameters
@@ -186,18 +256,26 @@ sunrise, sunset, err := solar.SunriseSunsetFromNMEA(nmea, 2024, time.June, 21)
 - Handles 2-digit year conversion (00-49 → 2000-2049, 50-99 → 1950-1999)
 - Detailed error messages for debugging
 
-### Additional NMEA Functions
+### Additional NMEA Convenience Functions
 
-All major solar calculation functions have NMEA-compatible versions:
+All major solar calculation functions have NMEA-compatible convenience versions:
 
 ```go
-// Solar noon from NMEA
 nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*71"
+
+// Solar noon from NMEA
 noon, err := solar.MeanSolarNoonFromNMEA(nmea, 0, 0, 0)
 if err != nil {
     log.Fatal(err)
 }
 fmt.Printf("Solar noon: %s\n", noon.Format("15:04 MST"))
+
+// Solar azimuth from NMEA
+azimuth, err := solar.AzimuthFromNMEA(nmea, 2024, time.June, 21)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Sun azimuth: %.2f degrees\n", azimuth)
 
 // Solar elevation from NMEA
 elevation, err := solar.ElevationFromNMEA(nmea, 2024, time.June, 21)
@@ -209,13 +287,20 @@ fmt.Printf("Current elevation: %.2f degrees\n", elevation)
 // Time of specific elevation from NMEA
 morning, evening, err := solar.TimeOfElevationFromNMEA(
     nmea,
-    -6.0,  // Golden hour elevation
+    6.0,  // Golden hour elevation
     2024, time.June, 21,
 )
 if err != nil {
     log.Fatal(err)
 }
 fmt.Printf("Golden hour: %s to %s\n", morning.Format("15:04"), evening.Format("15:04"))
+
+// Dawn and dusk from NMEA
+dawn, dusk, err := solar.DawnDuskFromNMEA(nmea, 0, 0, 0)
+if err != nil {
+    log.Fatal(err)
+}
+fmt.Printf("Dawn: %s, Dusk: %s\n", dawn.Format("15:04"), dusk.Format("15:04"))
 ```
 
 **Available NMEA functions:**
