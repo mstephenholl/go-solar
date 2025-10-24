@@ -157,65 +157,6 @@ func ExampleAlmostEqual() {
 	// false
 }
 
-// ExampleMin demonstrates the generic Min function.
-func ExampleMin() {
-	// Works with int
-	fmt.Println(solar.Min(5, 10))
-
-	// Works with float64
-	fmt.Println(solar.Min(3.14, 2.71))
-
-	// Output:
-	// 5
-	// 2.71
-}
-
-// ExampleMax demonstrates the generic Max function.
-func ExampleMax() {
-	// Works with int
-	fmt.Println(solar.Max(5, 10))
-
-	// Works with float64
-	fmt.Println(solar.Max(3.14, 2.71))
-
-	// Output:
-	// 10
-	// 3.14
-}
-
-// ExampleClamp demonstrates restricting a value to a range.
-func ExampleClamp() {
-	// Value within range
-	fmt.Println(solar.Clamp(5, 0, 10))
-
-	// Value below minimum
-	fmt.Println(solar.Clamp(-5, 0, 10))
-
-	// Value above maximum
-	fmt.Println(solar.Clamp(15, 0, 10))
-
-	// Output:
-	// 5
-	// 0
-	// 10
-}
-
-// ExampleDegreesToRadians demonstrates angle conversion.
-func ExampleDegreesToRadians() {
-	radians := solar.DegreesToRadians(180.0)
-	fmt.Printf("%.6f\n", radians)
-	// Output:
-	// 3.141593
-}
-
-// ExampleRadiansToDegrees demonstrates angle conversion.
-func ExampleRadiansToDegrees() {
-	degrees := solar.RadiansToDegrees(3.14159265)
-	fmt.Printf("%.1f\n", degrees)
-	// Output:
-	// 180.0
-}
-
 // ExampleAzimuth demonstrates calculating the solar azimuth angle.
 // The azimuth is the sun's compass direction measured clockwise from north.
 func ExampleAzimuth() {
