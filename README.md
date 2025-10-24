@@ -326,13 +326,6 @@ fmt.Println(solar.Abs(-3.14))    // float64: 3.14
 if solar.AlmostEqual(1.0, 1.00001, 0.001) {
     fmt.Println("Values are approximately equal")
 }
-
-// Min/Max for any numeric type
-fmt.Println(solar.Min(5, 10))        // 5
-fmt.Println(solar.Max(3.14, 2.71))   // 3.14
-
-// Clamp values to a range
-fmt.Println(solar.Clamp(15, 0, 10))  // 10
 ```
 
 ## 🧪 Development
