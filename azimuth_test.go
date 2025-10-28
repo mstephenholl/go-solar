@@ -191,17 +191,22 @@ func TestAzimuthFromNMEA_RMC(t *testing.T) {
 	// 07922.80,W = 79°22.8' = 79.38°
 	nmea := "$GPRMC,154200,A,4339.00,N,07922.80,W,000.0,000.0,140100,000.0,W*7B"
 
-	azimuth, err := AzimuthFromNMEA(nmea, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(nmea, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("AzimuthFromNMEA() error = %v", err)
+		t.Fatalf("NewLocationFromNMEA() error = %v", err)
 	}
+	tm, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("NewTimeFromNMEA() error = %v", err)
+	}
+	azimuth := Azimuth(loc, tm.DateTime())
 
 	// Expected azimuth ~154° based on test data
 	expected := 154.01
 	tolerance := 2.0
 	diff := math.Abs(azimuth - expected)
 	if diff > tolerance {
-		t.Errorf("AzimuthFromNMEA() = %.2f, want %.2f (±%.2f), diff = %.2f",
+		t.Errorf("Azimuth() = %.2f, want %.2f (±%.2f), diff = %.2f",
 			azimuth, expected, tolerance, diff)
 	}
 }
@@ -211,17 +216,22 @@ func TestAzimuthFromNMEA_GGA(t *testing.T) {
 	// Prime meridian location at 5:59 AM
 	nmea := "$GPGGA,055900,0000.000,N,00000.000,E,1,08,0.9,545.4,M,46.9,M,,*41"
 
-	azimuth, err := AzimuthFromNMEA(nmea, 1970, time.January, 1)
+	loc, err := NewLocationFromNMEA(nmea, 1970, time.January, 1)
 	if err != nil {
-		t.Fatalf("AzimuthFromNMEA() error = %v", err)
+		t.Fatalf("NewLocationFromNMEA() error = %v", err)
 	}
+	tm, err := NewTimeFromNMEA(nmea, 1970, time.January, 1)
+	if err != nil {
+		t.Fatalf("NewTimeFromNMEA() error = %v", err)
+	}
+	azimuth := Azimuth(loc, tm.DateTime())
 
 	// Expected azimuth ~113° based on test data
 	expected := 113.04
 	tolerance := 2.0
 	diff := math.Abs(azimuth - expected)
 	if diff > tolerance {
-		t.Errorf("AzimuthFromNMEA() = %.2f, want %.2f (±%.2f), diff = %.2f",
+		t.Errorf("Azimuth() = %.2f, want %.2f (±%.2f), diff = %.2f",
 			azimuth, expected, tolerance, diff)
 	}
 }
@@ -252,9 +262,9 @@ func TestAzimuthFromNMEA_InvalidSentences(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := AzimuthFromNMEA(tt.nmea, 2024, time.June, 21)
+			_, err := NewLocationFromNMEA(tt.nmea, 2024, time.June, 21)
 			if err == nil {
-				t.Error("AzimuthFromNMEA() expected error, got nil")
+				t.Error("NewLocationFromNMEA() expected error, got nil")
 			}
 		})
 	}
@@ -265,14 +275,19 @@ func TestAzimuthFromNMEA_SouthernHemisphere(t *testing.T) {
 	// Sydney coordinates: 33°52.128'S, 151°12.558'E
 	nmea := "$GPRMC,120000,A,3352.128,S,15112.558,E,000.0,000.0,210624,000.0,E*69"
 
-	azimuth, err := AzimuthFromNMEA(nmea, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(nmea, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("AzimuthFromNMEA() error = %v", err)
+		t.Fatalf("NewLocationFromNMEA() error = %v", err)
 	}
+	tm, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("NewTimeFromNMEA() error = %v", err)
+	}
+	azimuth := Azimuth(loc, tm.DateTime())
 
 	// Should get a valid azimuth
 	if azimuth < 0 || azimuth >= 360 {
-		t.Errorf("AzimuthFromNMEA() = %.2f, should be in range [0, 360)", azimuth)
+		t.Errorf("Azimuth() = %.2f, should be in range [0, 360)", azimuth)
 	}
 }
 
@@ -281,10 +296,15 @@ func TestAzimuthFromNMEA_ConsistencyWithDirect(t *testing.T) {
 	// Toronto: 43°39'N = 4339.00, 79°22.8'W = 07922.80
 	nmea := "$GPRMC,120000,A,4339.00,N,07922.80,W,000.0,000.0,210624,000.0,W*7D"
 
-	azimuthNMEA, err := AzimuthFromNMEA(nmea, 0, 0, 0)
+	locNMEA, err := NewLocationFromNMEA(nmea, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("AzimuthFromNMEA() error = %v", err)
+		t.Fatalf("NewLocationFromNMEA() error = %v", err)
 	}
+	tmNMEA, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("NewTimeFromNMEA() error = %v", err)
+	}
+	azimuthNMEA := Azimuth(locNMEA, tmNMEA.DateTime())
 
 	// Calculate directly
 	loc := NewLocation(43.65, -79.38)
@@ -304,7 +324,9 @@ func BenchmarkAzimuthFromNMEA_RMC(b *testing.B) {
 	nmea := "$GPRMC,154200,A,4339.00,N,07922.80,W,000.0,000.0,140100,000.0,W*7B"
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = AzimuthFromNMEA(nmea, 0, 0, 0)
+		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
+		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
+		_ = Azimuth(loc, tm.DateTime())
 	}
 }
 
@@ -313,6 +335,8 @@ func BenchmarkAzimuthFromNMEA_GGA(b *testing.B) {
 	nmea := "$GPGGA,055900,0000.000,N,00000.000,E,1,08,0.9,545.4,M,46.9,M,,*41"
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = AzimuthFromNMEA(nmea, 1970, time.January, 1)
+		loc, _ := NewLocationFromNMEA(nmea, 1970, time.January, 1)
+		tm, _ := NewTimeFromNMEA(nmea, 1970, time.January, 1)
+		_ = Azimuth(loc, tm.DateTime())
 	}
 }

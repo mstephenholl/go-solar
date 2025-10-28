@@ -199,52 +199,7 @@ fmt.Printf("Golden hour: %s to %s\n", morning.Format("15:04"), evening.Format("1
 
 ### Working with NMEA GPS Sentences
 
-The package provides two ways to work with NMEA GPS data:
-
-#### Option 1: Using Convenience Functions (Recommended)
-
-```go
-// Using RMC sentence (includes date)
-nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*71"
-sunrise, err := solar.SunriseFromNMEA(nmea, 0, 0, 0)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Printf("Sunrise: %s\n", sunrise.Format("15:04 MST"))
-
-// Using GGA sentence (requires external date)
-nmea = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*5C"
-sunset, err := solar.SunsetFromNMEA(nmea, 2024, time.June, 21)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Printf("Sunset: %s\n", sunset.Format("15:04 MST"))
-
-// Get both sunrise and sunset from NMEA
-sunrise, sunset, err := solar.SunriseSunsetFromNMEA(nmea, 2024, time.June, 21)
-```
-
-#### Option 2: Using Location/Time Constructors (More Flexible)
-
-```go
-nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*71"
-
-// Create Location and Time from NMEA
-loc, err := solar.NewLocationFromNMEA(nmea, 0, 0, 0)
-if err != nil {
-    log.Fatal(err)
-}
-
-t, err := solar.NewTimeFromNMEA(nmea, 0, 0, 0)
-if err != nil {
-    log.Fatal(err)
-}
-
-// Now use any solar function
-sunrise, err := solar.Sunrise(loc, t)
-dawn := solar.Dawn(loc, t, solar.Nautical)
-azimuth := solar.Azimuth(loc, t.DateTime())
-```
+The package supports parsing location and time data from NMEA GPS sentences, which you can then use with any solar calculation function.
 
 **Supported NMEA sentence types:**
 - **RMC** (Recommended Minimum): Includes date, no external date needed
@@ -256,64 +211,72 @@ azimuth := solar.Azimuth(loc, t.DateTime())
 - Handles 2-digit year conversion (00-49 → 2000-2049, 50-99 → 1950-1999)
 - Detailed error messages for debugging
 
-### Additional NMEA Convenience Functions
+#### Parsing NMEA Sentences
 
-All major solar calculation functions have NMEA-compatible convenience versions:
+```go
+// Using RMC sentence (includes date)
+nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*71"
+
+// Parse location from NMEA
+loc, err := solar.NewLocationFromNMEA(nmea, 0, 0, 0)  // For RMC, date params ignored
+if err != nil {
+    log.Fatal(err)
+}
+
+// Parse time from NMEA
+t, err := solar.NewTimeFromNMEA(nmea, 0, 0, 0)  // For RMC, date params ignored
+if err != nil {
+    log.Fatal(err)
+}
+
+// Using GGA sentence (requires external date)
+nmea = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*5C"
+loc, err = solar.NewLocationFromNMEA(nmea, 2024, time.June, 21)  // Must provide date for GGA
+if err != nil {
+    log.Fatal(err)
+}
+t, err = solar.NewTimeFromNMEA(nmea, 2024, time.June, 21)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+#### Using NMEA Data with Solar Functions
+
+Once you've parsed the NMEA sentence into Location and Time, you can use them with any solar calculation function:
 
 ```go
 nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*71"
 
-// Solar noon from NMEA
-noon, err := solar.MeanSolarNoonFromNMEA(nmea, 0, 0, 0)
+// Parse NMEA once
+loc, err := solar.NewLocationFromNMEA(nmea, 0, 0, 0)
 if err != nil {
     log.Fatal(err)
 }
-fmt.Printf("Solar noon: %s\n", noon.Format("15:04 MST"))
+t, err := solar.NewTimeFromNMEA(nmea, 0, 0, 0)
+if err != nil {
+    log.Fatal(err)
+}
 
-// Solar azimuth from NMEA
-azimuth, err := solar.AzimuthFromNMEA(nmea, 2024, time.June, 21)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Printf("Sun azimuth: %.2f degrees\n", azimuth)
+// Use with any solar function
+sunrise, err := solar.Sunrise(loc, t)
+sunset, err := solar.Sunset(loc, t)
+noon := solar.MeanSolarNoon(loc, t)
+dawn := solar.Dawn(loc, t, solar.Civil)
+dusk := solar.Dusk(loc, t, solar.Nautical)
+azimuth := solar.Azimuth(loc, t.DateTime())
+elevation := solar.Elevation(loc, t.DateTime())
 
-// Solar elevation from NMEA
-elevation, err := solar.ElevationFromNMEA(nmea, 2024, time.June, 21)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Printf("Current elevation: %.2f degrees\n", elevation)
-
-// Time of specific elevation from NMEA
-morning, evening, err := solar.TimeOfElevationFromNMEA(
-    nmea,
-    6.0,  // Golden hour elevation
-    2024, time.June, 21,
-)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Printf("Golden hour: %s to %s\n", morning.Format("15:04"), evening.Format("15:04"))
-
-// Dawn and dusk from NMEA
-dawn, dusk, err := solar.DawnDuskFromNMEA(nmea, 0, 0, 0)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Printf("Dawn: %s, Dusk: %s\n", dawn.Format("15:04"), dusk.Format("15:04"))
+// For time-sensitive calculations (azimuth, elevation),
+// use time.Now() or the GPS time from NMEA
+currentAzimuth := solar.Azimuth(loc, time.Now())
 ```
 
-**Available NMEA functions:**
-- `SunriseFromNMEA()` - Calculate sunrise from GPS sentence
-- `SunsetFromNMEA()` - Calculate sunset from GPS sentence
-- `SunriseSunsetFromNMEA()` - Calculate both sunrise and sunset
-- `DawnFromNMEA()` - Calculate dawn from GPS sentence (supports Civil/Nautical/Astronomical)
-- `DuskFromNMEA()` - Calculate dusk from GPS sentence (supports Civil/Nautical/Astronomical)
-- `DawnDuskFromNMEA()` - Calculate both dawn and dusk from GPS sentence
-- `MeanSolarNoonFromNMEA()` - Calculate solar noon from GPS sentence
-- `ElevationFromNMEA()` - Calculate current solar elevation from GPS sentence
-- `TimeOfElevationFromNMEA()` - Calculate when sun reaches specific elevation
-- `AzimuthFromNMEA()` - Calculate solar azimuth (compass direction) from GPS sentence
+**Benefits of this approach:**
+- Parse NMEA sentence once, use with multiple calculations
+- Compose any combination of Location/Time sources
+- Clearer separation between parsing and calculation logic
+- More flexible for complex GPS data processing workflows
 
 ### Using Generic Helpers
 

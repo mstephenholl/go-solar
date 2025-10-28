@@ -22,7 +22,15 @@ const (
 
 func TestSunriseFromNMEA_RMC(t *testing.T) {
 	// Test with valid RMC sentence
-	sunrise, err := SunriseFromNMEA(validRMC, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating location: %v", err)
+	}
+	tm, err := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	sunrise, err := Sunrise(loc, tm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -39,7 +47,15 @@ func TestSunriseFromNMEA_RMC(t *testing.T) {
 
 func TestSunsetFromNMEA_RMC(t *testing.T) {
 	// Test with valid RMC sentence
-	sunset, err := SunsetFromNMEA(validRMC, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating location: %v", err)
+	}
+	tm, err := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	sunset, err := Sunset(loc, tm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -55,7 +71,15 @@ func TestSunsetFromNMEA_RMC(t *testing.T) {
 }
 
 func TestSunriseSunsetFromNMEA_RMC(t *testing.T) {
-	sunrise, sunset, err := SunriseSunsetFromNMEA(validRMC, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating location: %v", err)
+	}
+	tm, err := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	sunrise, sunset, err := SunriseSunset(loc, tm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -77,7 +101,15 @@ func TestSunriseSunsetFromNMEA_RMC(t *testing.T) {
 
 func TestSunriseFromNMEA_GGA(t *testing.T) {
 	// GGA requires external date
-	sunrise, err := SunriseFromNMEA(validGGA, 1994, time.March, 23)
+	loc, err := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
+	if err != nil {
+		t.Fatalf("unexpected error creating location: %v", err)
+	}
+	tm, err := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	sunrise, err := Sunrise(loc, tm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -94,7 +126,7 @@ func TestSunriseFromNMEA_GGA(t *testing.T) {
 
 func TestSunriseFromNMEA_GGA_MissingDate(t *testing.T) {
 	// GGA without date should fail
-	_, err := SunriseFromNMEA(validGGA, 0, 0, 0)
+	_, err := NewLocationFromNMEA(validGGA, 0, 0, 0)
 	if err == nil {
 		t.Fatal("expected error for GGA without date")
 	}
@@ -106,7 +138,15 @@ func TestSunriseFromNMEA_GGA_MissingDate(t *testing.T) {
 
 func TestSunriseSunsetFromNMEA_SouthernHemisphere(t *testing.T) {
 	// Sydney area - June 21 is winter solstice
-	sunrise, sunset, err := SunriseSunsetFromNMEA(validRMCSouth, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMCSouth, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating location: %v", err)
+	}
+	tm, err := NewTimeFromNMEA(validRMCSouth, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	sunrise, sunset, err := SunriseSunset(loc, tm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -126,7 +166,15 @@ func TestSunriseSunsetFromNMEA_DateLineCrossing(t *testing.T) {
 	// Date: January 1, 2020 (00:30:45 UTC)
 	nmea := "$GPRMC,003045,A,0000.000,N,18000.000,E,000.0,000.0,010120,000.0,E*7F"
 
-	sunrise, sunset, err := SunriseSunsetFromNMEA(nmea, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating location: %v", err)
+	}
+	tm, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	sunrise, sunset, err := SunriseSunset(loc, tm)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -213,7 +261,7 @@ func TestParseNMEA_InvalidSentences(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := SunriseFromNMEA(tc.nmea, tc.year, tc.month, tc.day)
+			_, err := NewLocationFromNMEA(tc.nmea, tc.year, tc.month, tc.day)
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
@@ -498,10 +546,18 @@ func TestValidateChecksum(t *testing.T) {
 }
 
 // Example tests for documentation
-func ExampleSunriseFromNMEA() {
+func ExampleNewLocationFromNMEA() {
 	// Using an RMC sentence (includes date: March 23, 1994)
 	nmea := "$GPRMC,123519,A,4339.192,N,07922.992,W,022.4,084.4,230394,003.1,W*71"
-	sunrise, err := SunriseFromNMEA(nmea, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	tm, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	sunrise, err := Sunrise(loc, tm)
 	if err != nil {
 		panic(err)
 	}
@@ -510,10 +566,18 @@ func ExampleSunriseFromNMEA() {
 	_ = sunrise // Use the sunrise time
 }
 
-func ExampleSunriseFromNMEA_gga() {
+func ExampleNewLocationFromNMEA_gga() {
 	// Using a GGA sentence (requires external date)
 	nmea := "$GPGGA,123519,4339.192,N,07922.992,W,1,08,0.9,545.4,M,46.9,M,,*5C"
-	sunrise, err := SunriseFromNMEA(nmea, 2024, time.June, 21)
+	loc, err := NewLocationFromNMEA(nmea, 2024, time.June, 21)
+	if err != nil {
+		panic(err)
+	}
+	tm, err := NewTimeFromNMEA(nmea, 2024, time.June, 21)
+	if err != nil {
+		panic(err)
+	}
+	sunrise, err := Sunrise(loc, tm)
 	if err != nil {
 		panic(err)
 	}
@@ -521,10 +585,18 @@ func ExampleSunriseFromNMEA_gga() {
 	_ = sunrise // Use the sunrise time
 }
 
-func ExampleSunsetFromNMEA() {
+func ExampleSunset() {
 	// Using an RMC sentence
 	nmea := "$GPRMC,123519,A,4339.192,N,07922.992,W,022.4,084.4,230394,003.1,W*71"
-	sunset, err := SunsetFromNMEA(nmea, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	tm, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	sunset, err := Sunset(loc, tm)
 	if err != nil {
 		panic(err)
 	}
@@ -532,10 +604,18 @@ func ExampleSunsetFromNMEA() {
 	_ = sunset // Use the sunset time
 }
 
-func ExampleSunriseSunsetFromNMEA() {
+func ExampleSunriseSunset() {
 	// Using an RMC sentence to get both sunrise and sunset
 	nmea := "$GPRMC,123519,A,4339.192,N,07922.992,W,022.4,084.4,230394,003.1,W*71"
-	sunrise, sunset, err := SunriseSunsetFromNMEA(nmea, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	tm, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		panic(err)
+	}
+	sunrise, sunset, err := SunriseSunset(loc, tm)
 	if err != nil {
 		panic(err)
 	}
@@ -550,7 +630,9 @@ func BenchmarkSunriseFromNMEA_RMC(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = SunriseFromNMEA(nmea, 0, 0, 0)
+		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
+		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
+		_, _ = Sunrise(loc, tm)
 	}
 }
 
@@ -559,7 +641,9 @@ func BenchmarkSunsetFromNMEA_RMC(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = SunsetFromNMEA(nmea, 0, 0, 0)
+		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
+		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
+		_, _ = Sunset(loc, tm)
 	}
 }
 
@@ -568,7 +652,9 @@ func BenchmarkSunriseSunsetFromNMEA_RMC(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = SunriseSunsetFromNMEA(nmea, 0, 0, 0)
+		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
+		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
+		_, _, _ = SunriseSunset(loc, tm)
 	}
 }
 
@@ -577,7 +663,9 @@ func BenchmarkSunriseFromNMEA_GGA(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = SunriseFromNMEA(nmea, 1994, time.March, 23)
+		loc, _ := NewLocationFromNMEA(nmea, 1994, time.March, 23)
+		tm, _ := NewTimeFromNMEA(nmea, 1994, time.March, 23)
+		_, _ = Sunrise(loc, tm)
 	}
 }
 
@@ -626,7 +714,7 @@ func BenchmarkValidateChecksum(b *testing.B) {
 
 func TestSunsetFromNMEA_Errors(t *testing.T) {
 	// Invalid NMEA should return error
-	_, err := SunsetFromNMEA("invalid", 2024, time.June, 21)
+	_, err := NewLocationFromNMEA("invalid", 2024, time.June, 21)
 	if err == nil {
 		t.Error("Expected error for invalid NMEA, got nil")
 	}
@@ -634,7 +722,7 @@ func TestSunsetFromNMEA_Errors(t *testing.T) {
 
 func TestSunriseSunsetFromNMEA_Errors(t *testing.T) {
 	// Invalid NMEA should return error
-	_, _, err := SunriseSunsetFromNMEA("invalid", 2024, time.June, 21)
+	_, err := NewLocationFromNMEA("invalid", 2024, time.June, 21)
 	if err == nil {
 		t.Error("Expected error for invalid NMEA, got nil")
 	}

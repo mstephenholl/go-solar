@@ -245,3 +245,132 @@ func ExampleDawnDusk_astronomical() {
 	// Astronomical dawn: 11:07 UTC
 	// Astronomical dusk: 23:34 UTC
 }
+
+// ExampleNewLocationFromNMEA demonstrates parsing location from an NMEA GPS sentence.
+func ExampleNewLocationFromNMEA() {
+	// Parse an NMEA RMC sentence (includes date)
+	nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A"
+	loc, err := solar.NewLocationFromNMEA(nmea, 0, 0, 0) // Date ignored for RMC
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Latitude: %.4f\n", loc.Latitude())
+	fmt.Printf("Longitude: %.4f\n", loc.Longitude())
+	// Output:
+	// Latitude: 48.1173
+	// Longitude: 11.5167
+}
+
+// ExampleNewLocationFromNMEA_gga demonstrates parsing a GGA sentence which requires an external date.
+func ExampleNewLocationFromNMEA_gga() {
+	// Parse an NMEA GGA sentence (requires external date)
+	nmea := "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47"
+	loc, err := solar.NewLocationFromNMEA(nmea, 2024, time.June, 21) // Must provide date
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Latitude: %.4f\n", loc.Latitude())
+	fmt.Printf("Longitude: %.4f\n", loc.Longitude())
+	// Output:
+	// Latitude: 48.1173
+	// Longitude: 11.5167
+}
+
+// ExampleNewTimeFromNMEA demonstrates parsing time from an NMEA GPS sentence.
+func ExampleNewTimeFromNMEA() {
+	// Parse time from an NMEA RMC sentence
+	nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A"
+	t, err := solar.NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Year: %d\n", t.Year())
+	fmt.Printf("Month: %s\n", t.Month())
+	fmt.Printf("Day: %d\n", t.Day())
+	// Output:
+	// Year: 1994
+	// Month: March
+	// Day: 23
+}
+
+// ExampleNewLocationFromNMEA_withSolarCalculation demonstrates the complete pattern
+// of parsing NMEA data and using it with solar calculations.
+func ExampleNewLocationFromNMEA_withSolarCalculation() {
+	// NMEA sentence from GPS
+	nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A"
+
+	// Parse location from NMEA
+	loc, err := solar.NewLocationFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		fmt.Printf("Error parsing location: %v\n", err)
+		return
+	}
+
+	// Parse time from NMEA
+	t, err := solar.NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		fmt.Printf("Error parsing time: %v\n", err)
+		return
+	}
+
+	// Now use with any solar calculation
+	sunrise, err := solar.Sunrise(loc, t)
+	if err != nil {
+		fmt.Printf("Error calculating sunrise: %v\n", err)
+		return
+	}
+
+	sunset, err := solar.Sunset(loc, t)
+	if err != nil {
+		fmt.Printf("Error calculating sunset: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Sunrise: %s\n", sunrise.Format("15:04 MST"))
+	fmt.Printf("Sunset: %s\n", sunset.Format("15:04 MST"))
+	// Output:
+	// Sunrise: 05:10 UTC
+	// Sunset: 17:30 UTC
+}
+
+// ExampleNewLocationFromNMEA_multipleCalculations demonstrates the efficiency
+// of parsing NMEA once and reusing the parsed data for multiple calculations.
+func ExampleNewLocationFromNMEA_multipleCalculations() {
+	nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A"
+
+	// Parse NMEA once
+	loc, err := solar.NewLocationFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+	t, err := solar.NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	// Use with multiple calculations
+	sunrise, _ := solar.Sunrise(loc, t)
+	sunset, _ := solar.Sunset(loc, t)
+	noon := solar.MeanSolarNoon(loc, t)
+	dawn, dusk := solar.DawnDusk(loc, t)
+
+	fmt.Printf("Dawn: %s\n", dawn.Format("15:04"))
+	fmt.Printf("Sunrise: %s\n", sunrise.Format("15:04"))
+	fmt.Printf("Solar Noon: %s\n", noon.Format("15:04"))
+	fmt.Printf("Sunset: %s\n", sunset.Format("15:04"))
+	fmt.Printf("Dusk: %s\n", dusk.Format("15:04"))
+	// Output:
+	// Dawn: 04:39
+	// Sunrise: 05:10
+	// Solar Noon: 11:13
+	// Sunset: 17:30
+	// Dusk: 18:01
+}

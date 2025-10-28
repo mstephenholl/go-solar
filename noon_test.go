@@ -33,10 +33,15 @@ func TestMeanSolarNoon(t *testing.T) {
 func TestMeanSolarNoonFromNMEA_RMC(t *testing.T) {
 	// Using the standard validRMC from nmea_test.go
 	// Toronto (43.65° N, 79.38° W) on March 23, 1994
-	solarNoon, err := MeanSolarNoonFromNMEA(validRMC, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMC, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	solarNoon := MeanSolarNoon(loc, tm)
 
 	// Verify we got a valid time
 	if solarNoon.IsZero() {
@@ -59,13 +64,20 @@ func TestMeanSolarNoonFromNMEA_RMC(t *testing.T) {
 // TestMeanSolarNoonFromNMEA_GGA tests MeanSolarNoonFromNMEA with GGA sentences
 func TestMeanSolarNoonFromNMEA_GGA(t *testing.T) {
 	// GGA requires external date
-	solarNoon, err := MeanSolarNoonFromNMEA(validGGA, 1994, time.March, 23)
+	loc, err := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	solarNoon := MeanSolarNoon(loc, tm)
 
 	// Should match RMC result (same location and date)
-	solarNoonRMC, _ := MeanSolarNoonFromNMEA(validRMC, 0, 0, 0)
+	locRMC, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
+	tmRMC, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	solarNoonRMC := MeanSolarNoon(locRMC, tmRMC)
 
 	// Times should be very close (within a few seconds)
 	if Abs(solarNoon.Unix()-solarNoonRMC.Unix()) > 5 {
@@ -75,7 +87,7 @@ func TestMeanSolarNoonFromNMEA_GGA(t *testing.T) {
 
 // TestMeanSolarNoonFromNMEA_GGA_MissingDate tests that GGA fails without date
 func TestMeanSolarNoonFromNMEA_GGA_MissingDate(t *testing.T) {
-	_, err := MeanSolarNoonFromNMEA(validGGA, 0, 0, 0)
+	_, err := NewLocationFromNMEA(validGGA, 0, 0, 0)
 	if err == nil {
 		t.Error("expected error for GGA sentence without date, got nil")
 	}
@@ -84,10 +96,15 @@ func TestMeanSolarNoonFromNMEA_GGA_MissingDate(t *testing.T) {
 // TestMeanSolarNoonFromNMEA_SouthernHemisphere tests southern hemisphere
 func TestMeanSolarNoonFromNMEA_SouthernHemisphere(t *testing.T) {
 	// Sydney, Australia - RMC from June 21, 2021
-	solarNoon, err := MeanSolarNoonFromNMEA(validRMCSouth, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMCSouth, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validRMCSouth, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	solarNoon := MeanSolarNoon(loc, tm)
 
 	// Verify we got a valid time
 	if solarNoon.IsZero() {
@@ -123,7 +140,7 @@ func TestMeanSolarNoonFromNMEA_InvalidSentences(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := MeanSolarNoonFromNMEA(tc.nmea, tc.year, tc.month, tc.day)
+			_, err := NewLocationFromNMEA(tc.nmea, tc.year, tc.month, tc.day)
 			if err == nil {
 				t.Errorf("expected error for %s, got nil", tc.name)
 			}
@@ -134,10 +151,15 @@ func TestMeanSolarNoonFromNMEA_InvalidSentences(t *testing.T) {
 // TestMeanSolarNoonFromNMEA_ConsistencyWithDirect tests consistency with direct calculation
 func TestMeanSolarNoonFromNMEA_ConsistencyWithDirect(t *testing.T) {
 	// Parse NMEA to get position and date
-	solarNoonFromNMEA, err := MeanSolarNoonFromNMEA(validRMC, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMC, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	solarNoonFromNMEA := MeanSolarNoon(loc, tm)
 
 	// Calculate directly using known Toronto coordinates and date
 	// Toronto: 43.65° N, 79.38° W, March 23, 1994
@@ -154,7 +176,9 @@ func TestMeanSolarNoonFromNMEA_ConsistencyWithDirect(t *testing.T) {
 func BenchmarkMeanSolarNoonFromNMEA_RMC(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = MeanSolarNoonFromNMEA(validRMC, 0, 0, 0)
+		loc, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
+		tm, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
+		_ = MeanSolarNoon(loc, tm)
 	}
 }
 
@@ -162,6 +186,8 @@ func BenchmarkMeanSolarNoonFromNMEA_RMC(b *testing.B) {
 func BenchmarkMeanSolarNoonFromNMEA_GGA(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = MeanSolarNoonFromNMEA(validGGA, 1994, time.March, 23)
+		loc, _ := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
+		tm, _ := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
+		_ = MeanSolarNoon(loc, tm)
 	}
 }

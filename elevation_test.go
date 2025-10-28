@@ -169,10 +169,15 @@ func BenchmarkTimeOfElevation_Angles(b *testing.B) {
 
 // TestElevationFromNMEA_RMC tests ElevationFromNMEA with RMC sentences
 func TestElevationFromNMEA_RMC(t *testing.T) {
-	elevation, err := ElevationFromNMEA(validRMC, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMC, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	elevation := Elevation(loc, tm.DateTime())
 
 	// At Toronto (43.65°N, 79.38°W) on March 23, 1994 at 12:35:19 UTC
 	// UTC 12:35 is ~7:35 AM local (EST is UTC-5), so sun should be relatively low
@@ -185,13 +190,20 @@ func TestElevationFromNMEA_RMC(t *testing.T) {
 // TestElevationFromNMEA_GGA tests ElevationFromNMEA with GGA sentences
 func TestElevationFromNMEA_GGA(t *testing.T) {
 	// GGA requires external date
-	elevation, err := ElevationFromNMEA(validGGA, 1994, time.March, 23)
+	loc, err := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	elevation := Elevation(loc, tm.DateTime())
 
 	// Should match RMC result (same location and time)
-	elevationRMC, _ := ElevationFromNMEA(validRMC, 0, 0, 0)
+	locRMC, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
+	tmRMC, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	elevationRMC := Elevation(locRMC, tmRMC.DateTime())
 	if !AlmostEqual(elevation, elevationRMC, 0.1) {
 		t.Errorf("GGA elevation %.2f != RMC elevation %.2f", elevation, elevationRMC)
 	}
@@ -199,7 +211,7 @@ func TestElevationFromNMEA_GGA(t *testing.T) {
 
 // TestElevationFromNMEA_GGA_MissingDate tests that GGA fails without date
 func TestElevationFromNMEA_GGA_MissingDate(t *testing.T) {
-	_, err := ElevationFromNMEA(validGGA, 0, 0, 0)
+	_, err := NewLocationFromNMEA(validGGA, 0, 0, 0)
 	if err == nil {
 		t.Error("expected error for GGA sentence without date, got nil")
 	}
@@ -208,10 +220,15 @@ func TestElevationFromNMEA_GGA_MissingDate(t *testing.T) {
 // TestElevationFromNMEA_SouthernHemisphere tests southern hemisphere
 func TestElevationFromNMEA_SouthernHemisphere(t *testing.T) {
 	// Sydney at 12:00:00 UTC on June 21 (winter solstice)
-	elevation, err := ElevationFromNMEA(validRMCSouth, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMCSouth, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validRMCSouth, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	elevation := Elevation(loc, tm.DateTime())
 
 	// 12:00 UTC in Sydney (UTC+10) is 22:00 local time - nighttime
 	// Sun should be well below the horizon (negative elevation)
@@ -237,7 +254,7 @@ func TestElevationFromNMEA_InvalidSentences(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ElevationFromNMEA(tc.nmea, tc.year, tc.month, tc.day)
+			_, err := NewLocationFromNMEA(tc.nmea, tc.year, tc.month, tc.day)
 			if err == nil {
 				t.Errorf("expected error for %s, got nil", tc.name)
 			}
@@ -248,10 +265,15 @@ func TestElevationFromNMEA_InvalidSentences(t *testing.T) {
 // TestTimeOfElevationFromNMEA_RMC tests TimeOfElevationFromNMEA with RMC
 func TestTimeOfElevationFromNMEA_RMC(t *testing.T) {
 	// Calculate civil twilight times for Toronto on March 23, 1994
-	morning, evening, err := TimeOfElevationFromNMEA(validRMC, -6.0, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMC, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	morning, evening := TimeOfElevation(loc, -6.0, tm)
 
 	// Verify we got valid times
 	if morning.IsZero() || evening.IsZero() {
@@ -279,10 +301,15 @@ func TestTimeOfElevationFromNMEA_RMC(t *testing.T) {
 // TestTimeOfElevationFromNMEA_GGA tests TimeOfElevationFromNMEA with GGA
 func TestTimeOfElevationFromNMEA_GGA(t *testing.T) {
 	// Calculate sunrise/sunset for Toronto
-	morning, evening, err := TimeOfElevationFromNMEA(validGGA, sunriseElevation, 1994, time.March, 23)
+	loc, err := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	morning, evening := TimeOfElevation(loc, sunriseElevation, tm)
 
 	// Verify we got valid times
 	if morning.IsZero() || evening.IsZero() {
@@ -290,7 +317,9 @@ func TestTimeOfElevationFromNMEA_GGA(t *testing.T) {
 	}
 
 	// Should match RMC result
-	morningRMC, eveningRMC, _ := TimeOfElevationFromNMEA(validRMC, sunriseElevation, 0, 0, 0)
+	locRMC, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
+	tmRMC, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	morningRMC, eveningRMC := TimeOfElevation(locRMC, sunriseElevation, tmRMC)
 	if Abs(morning.Unix()-morningRMC.Unix()) > 2 {
 		t.Errorf("GGA morning %v != RMC morning %v", morning, morningRMC)
 	}
@@ -314,10 +343,15 @@ func TestTimeOfElevationFromNMEA_MultipleAngles(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			morning, evening, err := TimeOfElevationFromNMEA(validRMC, tc.elevation, 0, 0, 0)
+			loc, err := NewLocationFromNMEA(validRMC, 0, 0, 0)
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatalf("unexpected error creating location: %v", err)
 			}
+			tm, err := NewTimeFromNMEA(validRMC, 0, 0, 0)
+			if err != nil {
+				t.Fatalf("unexpected error creating time: %v", err)
+			}
+			morning, evening := TimeOfElevation(loc, tc.elevation, tm)
 
 			// All these angles should be reachable for Toronto in March
 			if morning.IsZero() || evening.IsZero() {
@@ -335,10 +369,15 @@ func TestTimeOfElevationFromNMEA_MultipleAngles(t *testing.T) {
 // TestTimeOfElevationFromNMEA_UnreachableElevation tests unreachable elevations
 func TestTimeOfElevationFromNMEA_UnreachableElevation(t *testing.T) {
 	// Try to find when sun is at 70 degrees (unreachable at Toronto latitude in March)
-	morning, evening, err := TimeOfElevationFromNMEA(validRMC, 70.0, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(validRMC, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf("unexpected error creating location: %v", err)
 	}
+	tm, err := NewTimeFromNMEA(validRMC, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("unexpected error creating time: %v", err)
+	}
+	morning, evening := TimeOfElevation(loc, 70.0, tm)
 
 	// Should return zero times for unreachable elevation
 	if !morning.IsZero() || !evening.IsZero() {
@@ -348,7 +387,7 @@ func TestTimeOfElevationFromNMEA_UnreachableElevation(t *testing.T) {
 
 // TestTimeOfElevationFromNMEA_GGA_MissingDate tests GGA without date
 func TestTimeOfElevationFromNMEA_GGA_MissingDate(t *testing.T) {
-	_, _, err := TimeOfElevationFromNMEA(validGGA, -6.0, 0, 0, 0)
+	_, err := NewLocationFromNMEA(validGGA, 0, 0, 0)
 	if err == nil {
 		t.Error("expected error for GGA sentence without date, got nil")
 	}
@@ -358,7 +397,9 @@ func TestTimeOfElevationFromNMEA_GGA_MissingDate(t *testing.T) {
 func BenchmarkElevationFromNMEA_RMC(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = ElevationFromNMEA(validRMC, 0, 0, 0)
+		loc, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
+		tm, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
+		_ = Elevation(loc, tm.DateTime())
 	}
 }
 
@@ -366,7 +407,9 @@ func BenchmarkElevationFromNMEA_RMC(b *testing.B) {
 func BenchmarkElevationFromNMEA_GGA(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = ElevationFromNMEA(validGGA, 1994, time.March, 23)
+		loc, _ := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
+		tm, _ := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
+		_ = Elevation(loc, tm.DateTime())
 	}
 }
 
@@ -374,7 +417,9 @@ func BenchmarkElevationFromNMEA_GGA(b *testing.B) {
 func BenchmarkTimeOfElevationFromNMEA_RMC(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = TimeOfElevationFromNMEA(validRMC, -6.0, 0, 0, 0)
+		loc, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
+		tm, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
+		_, _ = TimeOfElevation(loc, -6.0, tm)
 	}
 }
 
@@ -382,7 +427,9 @@ func BenchmarkTimeOfElevationFromNMEA_RMC(b *testing.B) {
 func BenchmarkTimeOfElevationFromNMEA_GGA(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = TimeOfElevationFromNMEA(validGGA, -6.0, 1994, time.March, 23)
+		loc, _ := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
+		tm, _ := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
+		_, _ = TimeOfElevation(loc, -6.0, tm)
 	}
 }
 
@@ -402,7 +449,9 @@ func BenchmarkTimeOfElevationFromNMEA_Angles(b *testing.B) {
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				_, _, _ = TimeOfElevationFromNMEA(validRMC, tc.elevation, 0, 0, 0)
+				loc, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
+				tm, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
+				_, _ = TimeOfElevation(loc, tc.elevation, tm)
 			}
 		})
 	}

@@ -184,19 +184,24 @@ func TestDawnFromNMEA_RMC(t *testing.T) {
 	// 07922.80,W = 79°22.8' = 79.38°
 	nmea := "$GPRMC,120000,A,4339.00,N,07922.80,W,000.0,000.0,010100,000.0,W*7E"
 
-	dawn, err := DawnFromNMEA(nmea, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(nmea, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("DawnFromNMEA() error = %v", err)
+		t.Fatalf("NewLocationFromNMEA() error = %v", err)
 	}
+	tm, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("NewTimeFromNMEA() error = %v", err)
+	}
+	dawn := Dawn(loc, tm)
 
 	if dawn.IsZero() {
-		t.Error("DawnFromNMEA() returned zero time")
+		t.Error("Dawn() returned zero time")
 	}
 
 	// Verify it matches direct calculation
-	loc := NewLocation(43.65, -79.38)
-	tm := NewTime(2000, time.January, 1)
-	directDawn := Dawn(loc, tm)
+	locDirect := NewLocation(43.65, -79.38)
+	tmDirect := NewTime(2000, time.January, 1)
+	directDawn := Dawn(locDirect, tmDirect)
 	diff := dawn.Sub(directDawn)
 	if math.Abs(diff.Seconds()) > 1 {
 		t.Errorf("NMEA dawn differs from direct calculation by %v", diff)
@@ -208,19 +213,24 @@ func TestDuskFromNMEA_GGA(t *testing.T) {
 	// Prime meridian location
 	nmea := "$GPGGA,120000,0000.000,N,00000.000,E,1,08,0.9,545.4,M,46.9,M,,*4B"
 
-	dusk, err := DuskFromNMEA(nmea, 2024, time.June, 21)
+	loc, err := NewLocationFromNMEA(nmea, 2024, time.June, 21)
 	if err != nil {
-		t.Fatalf("DuskFromNMEA() error = %v", err)
+		t.Fatalf("NewLocationFromNMEA() error = %v", err)
 	}
+	tm, err := NewTimeFromNMEA(nmea, 2024, time.June, 21)
+	if err != nil {
+		t.Fatalf("NewTimeFromNMEA() error = %v", err)
+	}
+	dusk := Dusk(loc, tm)
 
 	if dusk.IsZero() {
-		t.Error("DuskFromNMEA() returned zero time")
+		t.Error("Dusk() returned zero time")
 	}
 
 	// Verify it matches direct calculation
-	loc := NewLocation(0, 0)
-	tm := NewTime(2024, time.June, 21)
-	directDusk := Dusk(loc, tm)
+	locDirect := NewLocation(0, 0)
+	tmDirect := NewTime(2024, time.June, 21)
+	directDusk := Dusk(locDirect, tmDirect)
 	diff := dusk.Sub(directDusk)
 	if math.Abs(diff.Seconds()) > 1 {
 		t.Errorf("NMEA dusk differs from direct calculation by %v", diff)
@@ -232,28 +242,33 @@ func TestDawnDuskFromNMEA(t *testing.T) {
 	// Toronto location: Jan 1, 2000
 	nmea := "$GPRMC,120000,A,4339.00,N,07922.80,W,000.0,000.0,010100,000.0,W*7E"
 
-	dawn, dusk, err := DawnDuskFromNMEA(nmea, 0, 0, 0)
+	loc, err := NewLocationFromNMEA(nmea, 0, 0, 0)
 	if err != nil {
-		t.Fatalf("DawnDuskFromNMEA() error = %v", err)
+		t.Fatalf("NewLocationFromNMEA() error = %v", err)
 	}
+	tm, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("NewTimeFromNMEA() error = %v", err)
+	}
+	dawn, dusk := DawnDusk(loc, tm)
 
 	if dawn.IsZero() || dusk.IsZero() {
-		t.Error("DawnDuskFromNMEA() returned zero times")
+		t.Error("DawnDusk() returned zero times")
 	}
 
 	if !dawn.Before(dusk) {
 		t.Errorf("Dawn (%v) should be before dusk (%v)", dawn, dusk)
 	}
 
-	// Verify consistency with individual NMEA functions
-	separateDawn, _ := DawnFromNMEA(nmea, 0, 0, 0)
-	separateDusk, _ := DuskFromNMEA(nmea, 0, 0, 0)
+	// Verify consistency with individual functions
+	separateDawn := Dawn(loc, tm)
+	separateDusk := Dusk(loc, tm)
 
 	if !dawn.Equal(separateDawn) {
-		t.Errorf("DawnDuskFromNMEA dawn (%v) != DawnFromNMEA() (%v)", dawn, separateDawn)
+		t.Errorf("DawnDusk dawn (%v) != Dawn() (%v)", dawn, separateDawn)
 	}
 	if !dusk.Equal(separateDusk) {
-		t.Errorf("DawnDuskFromNMEA dusk (%v) != DuskFromNMEA() (%v)", dusk, separateDusk)
+		t.Errorf("DawnDusk dusk (%v) != Dusk() (%v)", dusk, separateDusk)
 	}
 }
 
@@ -261,21 +276,19 @@ func TestDawnDuskFromNMEA(t *testing.T) {
 func TestDawnDuskFromNMEA_TwilightTypes(t *testing.T) {
 	nmea := "$GPRMC,120000,A,4339.00,N,07922.80,W,000.0,000.0,010100,000.0,W*7E"
 
+	loc, err := NewLocationFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("NewLocationFromNMEA() error: %v", err)
+	}
+	tm, err := NewTimeFromNMEA(nmea, 0, 0, 0)
+	if err != nil {
+		t.Fatalf("NewTimeFromNMEA() error: %v", err)
+	}
+
 	// Test all three types
-	civilDawn, civilDusk, err := DawnDuskFromNMEA(nmea, 0, 0, 0, Civil)
-	if err != nil {
-		t.Fatalf("Civil twilight error: %v", err)
-	}
-
-	nauticalDawn, nauticalDusk, err := DawnDuskFromNMEA(nmea, 0, 0, 0, Nautical)
-	if err != nil {
-		t.Fatalf("Nautical twilight error: %v", err)
-	}
-
-	astronomicalDawn, astronomicalDusk, err := DawnDuskFromNMEA(nmea, 0, 0, 0, Astronomical)
-	if err != nil {
-		t.Fatalf("Astronomical twilight error: %v", err)
-	}
+	civilDawn, civilDusk := DawnDusk(loc, tm, Civil)
+	nauticalDawn, nauticalDusk := DawnDusk(loc, tm, Nautical)
+	astronomicalDawn, astronomicalDusk := DawnDusk(loc, tm, Astronomical)
 
 	// Verify order: astronomical < nautical < civil
 	if !astronomicalDawn.Before(nauticalDawn) {
@@ -319,19 +332,9 @@ func TestDawnDuskFromNMEA_InvalidSentences(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := DawnFromNMEA(tt.nmea, 2024, time.June, 21)
+			_, err := NewLocationFromNMEA(tt.nmea, 2024, time.June, 21)
 			if err == nil {
-				t.Error("DawnFromNMEA() expected error, got nil")
-			}
-
-			_, err = DuskFromNMEA(tt.nmea, 2024, time.June, 21)
-			if err == nil {
-				t.Error("DuskFromNMEA() expected error, got nil")
-			}
-
-			_, _, err = DawnDuskFromNMEA(tt.nmea, 2024, time.June, 21)
-			if err == nil {
-				t.Error("DawnDuskFromNMEA() expected error, got nil")
+				t.Error("NewLocationFromNMEA() expected error, got nil")
 			}
 		})
 	}
@@ -396,7 +399,9 @@ func BenchmarkDawnFromNMEA_RMC(b *testing.B) {
 	nmea := "$GPRMC,120000,A,4339.00,N,07922.80,W,000.0,000.0,010100,000.0,W*7E"
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = DawnFromNMEA(nmea, 0, 0, 0)
+		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
+		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
+		_ = Dawn(loc, tm)
 	}
 }
 
@@ -405,7 +410,9 @@ func BenchmarkDuskFromNMEA_GGA(b *testing.B) {
 	nmea := "$GPGGA,120000,0000.000,N,00000.000,E,1,08,0.9,545.4,M,46.9,M,,*4B"
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = DuskFromNMEA(nmea, 2024, time.June, 21)
+		loc, _ := NewLocationFromNMEA(nmea, 2024, time.June, 21)
+		tm, _ := NewTimeFromNMEA(nmea, 2024, time.June, 21)
+		_ = Dusk(loc, tm)
 	}
 }
 
@@ -414,6 +421,8 @@ func BenchmarkDawnDuskFromNMEA(b *testing.B) {
 	nmea := "$GPRMC,120000,A,4339.00,N,07922.80,W,000.0,000.0,010100,000.0,W*7E"
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, _ = DawnDuskFromNMEA(nmea, 0, 0, 0)
+		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
+		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
+		_, _ = DawnDusk(loc, tm)
 	}
 }
