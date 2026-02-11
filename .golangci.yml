@@ -21,8 +21,8 @@ linters:
     - nilerr # Find code that returns nil even if error is not nil
     # Modern Go syntax linters
     - ireturn # Accept interfaces, return concrete types (supports generics)
-    # - intrange # Find places where for loops could use integer ranges (Go 1.22+) // Uncomment when Go 1.22+ is used
-    # - copyloopvar # Detect places where loop variables are copied (Go 1.22+) // Uncomment when Go 1.22+ is used
+    - intrange # Find places where for loops could use integer ranges (Go 1.22+)
+    - copyloopvar # Detect places where loop variables are copied (Go 1.22+)
     - asasalint # Check for passing []any as any in variadic functions
 
 # Linter-specific settings

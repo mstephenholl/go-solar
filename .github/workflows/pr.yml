@@ -8,6 +8,13 @@ permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  COVERAGE_THRESHOLD: '80'
+
 jobs:
   validate:
     name: Validate PR
@@ -19,27 +26,24 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.23'
-        cache: true
+    - name: Setup Go environment
+      uses: ./.github/actions/setup-go
 
-    - name: Download dependencies
-      run: go mod download
+    - name: Install goimports
+      run: go install golang.org/x/tools/cmd/goimports@latest
 
-    - name: Verify dependencies
-      run: go mod verify
-
-    - name: Check formatting
+    - name: Check formatting and imports
       run: |
-        if [ -n "$(gofmt -l .)" ]; then
-          echo "❌ Code is not formatted. Run 'make fmt' to fix."
-          echo "Files that need formatting:"
-          gofmt -l .
+        GOBIN=$(go env GOPATH)/bin
+        if [ -n "$($GOBIN/goimports -l -local github.com/mstephenholl/go-solar .)" ]; then
+          echo "Code is not formatted or imports need organization. Run 'make fmt' to fix."
+          $GOBIN/goimports -d -local github.com/mstephenholl/go-solar .
           exit 1
         fi
-        echo "✅ Code is properly formatted"
+        echo "Code is properly formatted"
+
+    - name: Build
+      run: go build -v ./...
 
     - name: Run go vet
       run: go vet ./...
@@ -77,8 +81,11 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
+          const upsert = require('./.github/scripts/upsert-comment.js');
           const coverage = '${{ steps.coverage.outputs.coverage }}';
           const color = '${{ steps.badge.outputs.color }}';
+          const threshold = process.env.COVERAGE_THRESHOLD;
+          const coverageDetails = require('fs').readFileSync('coverage.txt', 'utf8');
 
           const body = `## 📊 Test Coverage Report
 
@@ -88,52 +95,27 @@ jobs:
           <summary>📈 Coverage Details</summary>
 
           \`\`\`
-          ${require('fs').readFileSync('coverage.txt', 'utf8')}
+          ${coverageDetails}
           \`\`\`
 
           </details>
 
           ---
-          *Coverage threshold: 80%*
-          ${parseFloat(coverage) >= 80 ? '✅ Coverage meets threshold!' : '⚠️ Coverage below threshold'}`;
+          *Coverage threshold: ${threshold}%*
+          ${parseFloat(coverage) >= parseInt(threshold) ? '✅ Coverage meets threshold!' : '⚠️ Coverage below threshold'}`;
 
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-
-          const botComment = comments.find(comment =>
-            comment.user.type === 'Bot' &&
-            comment.body.includes('Test Coverage Report')
-          );
-
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id,
-              body: body
-            });
-          } else {
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body
-            });
-          }
+          await upsert({ github, context, marker: 'Test Coverage Report', body });
 
     - name: Check coverage threshold
       run: |
         COVERAGE=${{ steps.coverage.outputs.coverage }}
-        THRESHOLD=80
+        THRESHOLD=${{ env.COVERAGE_THRESHOLD }}
         if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
-          echo "⚠️  Coverage ($COVERAGE%) is below threshold ($THRESHOLD%)"
+          echo "Coverage ($COVERAGE%) is below threshold ($THRESHOLD%)"
           echo "Please add more tests to improve coverage"
           exit 1
         fi
-        echo "✅ Coverage ($COVERAGE%) meets threshold ($THRESHOLD%)"
+        echo "Coverage ($COVERAGE%) meets threshold ($THRESHOLD%)"
 
   benchmark:
     name: Run Benchmarks
@@ -143,11 +125,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.23'
-        cache: true
+    - name: Setup Go environment
+      uses: ./.github/actions/setup-go
 
     - name: Run benchmarks
       run: |
@@ -158,8 +137,8 @@ jobs:
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
-          const fs = require('fs');
-          const benchmark = fs.readFileSync('benchmark.txt', 'utf8');
+          const upsert = require('./.github/scripts/upsert-comment.js');
+          const benchmark = require('fs').readFileSync('benchmark.txt', 'utf8');
 
           const body = `## ⚡ Benchmark Results
 
@@ -172,29 +151,4 @@ jobs:
 
           </details>`;
 
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number,
-          });
-
-          const botComment = comments.find(comment =>
-            comment.user.type === 'Bot' &&
-            comment.body.includes('Benchmark Results')
-          );
-
-          if (botComment) {
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id,
-              body: body
-            });
-          } else {
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body
-            });
-          }
+          await upsert({ github, context, marker: 'Benchmark Results', body });
