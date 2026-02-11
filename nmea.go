@@ -104,7 +104,7 @@ func parseNMEA(nmea string, year int, month time.Month, day int) (nmeaPosition, 
 func validateChecksum(sentence, checksumStr string) error {
 	// Calculate checksum
 	var checksum byte
-	for i := 0; i < len(sentence); i++ {
+	for i := range len(sentence) {
 		checksum ^= sentence[i]
 	}
 
