@@ -32,6 +32,28 @@ type nmeaPosition struct {
 	Time      time.Time
 }
 
+// maxNMEAFields is the maximum number of comma-separated fields in an NMEA sentence.
+// NMEA 0183 sentences have a maximum length of 82 characters, limiting field count.
+const maxNMEAFields = 20
+
+// splitNMEAFields splits an NMEA sentence into fields using a stack-allocated array,
+// avoiding the heap allocation that strings.Split would require.
+func splitNMEAFields(s string, fields *[maxNMEAFields]string) int {
+	n := 0
+	for n < maxNMEAFields {
+		idx := strings.IndexByte(s, ',')
+		if idx == -1 {
+			fields[n] = s
+			n++
+			break
+		}
+		fields[n] = s[:idx]
+		s = s[idx+1:]
+		n++
+	}
+	return n
+}
+
 // parseNMEA parses an NMEA sentence and extracts position and date information.
 func parseNMEA(nmea string, year int, month time.Month, day int) (nmeaPosition, error) {
 	// Remove leading/trailing whitespace
@@ -42,23 +64,21 @@ func parseNMEA(nmea string, year int, month time.Month, day int) (nmeaPosition, 
 		return nmeaPosition{}, fmt.Errorf("%w: missing $ prefix", ErrInvalidNMEA)
 	}
 
-	// Split into sentence and checksum
-	parts := strings.Split(nmea[1:], "*")
-	if len(parts) != 2 {
+	// Split into sentence and checksum using strings.Cut (zero alloc)
+	sentence, checksumStr, found := strings.Cut(nmea[1:], "*")
+	if !found || strings.ContainsRune(checksumStr, '*') {
 		return nmeaPosition{}, fmt.Errorf("%w: missing or invalid checksum", ErrInvalidNMEA)
 	}
-
-	sentence := parts[0]
-	checksumStr := parts[1]
 
 	// Validate checksum
 	if err := validateChecksum(sentence, checksumStr); err != nil {
 		return nmeaPosition{}, err
 	}
 
-	// Split sentence into fields
-	fields := strings.Split(sentence, ",")
-	if len(fields) < 2 {
+	// Split sentence into fields using stack-allocated array (zero alloc)
+	var fields [maxNMEAFields]string
+	n := splitNMEAFields(sentence, &fields)
+	if n < 2 {
 		return nmeaPosition{}, fmt.Errorf("%w: insufficient fields", ErrInvalidNMEA)
 	}
 
@@ -72,9 +92,9 @@ func parseNMEA(nmea string, year int, month time.Month, day int) (nmeaPosition, 
 	// Parse based on sentence type
 	switch sentenceType {
 	case "GGA":
-		return parseGGA(fields, year, month, day)
+		return parseGGA(fields[:n], year, month, day)
 	case "RMC":
-		return parseRMC(fields)
+		return parseRMC(fields[:n])
 	default:
 		return nmeaPosition{}, fmt.Errorf("%w: %s (supported: GGA, RMC)", ErrUnsupportedSentence, sentenceType)
 	}
@@ -230,16 +250,18 @@ func parseNMEATime(timeStr string, year int, month time.Month, day int) (time.Ti
 	nanosecond := 0
 	if len(timeStr) > 7 && timeStr[6] == '.' {
 		fracStr := timeStr[7:]
-		// Pad to 9 digits for nanoseconds
-		for len(fracStr) < 9 {
-			fracStr += "0"
-		}
-		if len(fracStr) > 9 {
+		fracLen := len(fracStr)
+		if fracLen > 9 {
 			fracStr = fracStr[:9]
+			fracLen = 9
 		}
 		nanosecond, err = strconv.Atoi(fracStr)
 		if err != nil {
 			return time.Time{}, fmt.Errorf("%w: invalid fractional seconds", ErrInvalidDate)
+		}
+		// Scale to nanoseconds based on number of digits (zero alloc vs string padding)
+		for i := fracLen; i < 9; i++ {
+			nanosecond *= 10
 		}
 	}
 
