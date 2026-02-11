@@ -42,6 +42,9 @@ jobs:
         fi
         echo "Code is properly formatted"
 
+    - name: Build
+      run: go build -v ./...
+
     - name: Run go vet
       run: go vet ./...
 
