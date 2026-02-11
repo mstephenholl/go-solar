@@ -6,10 +6,25 @@ on:
     types:
       - completed
     branches: [ master ]
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type (auto, major, minor, patch)'
+        required: false
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - major
+          - minor
+          - patch
 
 permissions:
   contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -26,210 +41,189 @@ jobs:
       with:
         fetch-depth: '0'
 
-    - name: Generate version tag
-      id: version
+    - name: Get latest semver tag
+      id: latest_tag
       run: |
-        # CalVer format: YYYY.MM.MICRO
-        # Get current year and month (UTC)
-        YEAR=$(date -u +"%Y")
-        MONTH=$(date -u +"%m")
-
-        # Find existing tags for this year and month
-        YEAR_MONTH="${YEAR}.${MONTH}"
-
-        # Get all tags matching YYYY.MM.* pattern and extract MICRO versions
-        EXISTING_TAGS=$(git tag -l "v${YEAR_MONTH}.*" 2>/dev/null | sed "s/^v${YEAR_MONTH}\.//" | grep -E '^[0-9]+$' | sort -n)
-
-        # Find the highest MICRO version, default to -1 if none exist
-        if [ -z "$EXISTING_TAGS" ] || [ $(echo "$EXISTING_TAGS" | wc -l) -eq 0 ]; then
-          LAST_MICRO=-1
-          echo "No existing tags found for ${YEAR_MONTH}, starting at 0"
+        # Find the latest semver tag, filtering out CalVer tags (major >= 100)
+        LATEST=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname \
+          | awk -F'[v.]' '$2 < 100 {print; exit}')
+        if [ -z "$LATEST" ]; then
+          echo "tag=" >> $GITHUB_OUTPUT
+          echo "No semver tags found"
         else
-          LAST_MICRO=$(echo "$EXISTING_TAGS" | tail -n 1)
-          echo "Found existing tags, last MICRO version: ${LAST_MICRO}"
+          echo "tag=$LATEST" >> $GITHUB_OUTPUT
+          echo "Latest semver tag: $LATEST"
         fi
 
-        # Increment MICRO version
-        MICRO=$((LAST_MICRO + 1))
+    - name: Determine bump type
+      id: bump
+      run: |
+        MANUAL_BUMP="${{ github.event.inputs.bump || 'auto' }}"
 
-        # Create CalVer version: YYYY.MM.MICRO
-        VERSION="${YEAR}.${MONTH}.${MICRO}"
+        if [ "$MANUAL_BUMP" != "auto" ]; then
+          echo "type=$MANUAL_BUMP" >> $GITHUB_OUTPUT
+          echo "Bump type (manual override): $MANUAL_BUMP"
+          exit 0
+        fi
+
+        PREV_TAG="${{ steps.latest_tag.outputs.tag }}"
+        if [ -z "$PREV_TAG" ]; then
+          echo "type=minor" >> $GITHUB_OUTPUT
+          echo "No previous semver tag -- defaulting to minor (initial release)"
+          exit 0
+        fi
+
+        # Parse conventional commits since last tag
+        COMMITS=$(git log "${PREV_TAG}..HEAD" --pretty=format:"%s" --no-merges)
+
+        if echo "$COMMITS" | grep -qE "(^feat!|^fix!|^refactor!|BREAKING CHANGE)"; then
+          echo "type=major" >> $GITHUB_OUTPUT
+          echo "Bump type: major (breaking change detected)"
+        elif echo "$COMMITS" | grep -qE "^feat(\(.*\))?:"; then
+          echo "type=minor" >> $GITHUB_OUTPUT
+          echo "Bump type: minor (new feature detected)"
+        else
+          echo "type=patch" >> $GITHUB_OUTPUT
+          echo "Bump type: patch (fixes/maintenance only)"
+        fi
+
+    - name: Calculate next version
+      id: version
+      run: |
+        PREV_TAG="${{ steps.latest_tag.outputs.tag }}"
+        BUMP="${{ steps.bump.outputs.type }}"
+
+        if [ -z "$PREV_TAG" ]; then
+          VERSION="1.0.0"
+        else
+          # Strip leading 'v'
+          PREV=${PREV_TAG#v}
+          MAJOR=$(echo "$PREV" | cut -d. -f1)
+          MINOR=$(echo "$PREV" | cut -d. -f2)
+          PATCH=$(echo "$PREV" | cut -d. -f3)
+
+          case "$BUMP" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+        fi
 
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        echo "year=${YEAR}" >> $GITHUB_OUTPUT
-        echo "month=${MONTH}" >> $GITHUB_OUTPUT
-        echo "micro=${MICRO}" >> $GITHUB_OUTPUT
-        echo "Generated CalVer version: v${VERSION}"
+        echo "Next version: v${VERSION}"
 
     - name: Check if tag exists
       id: check_tag
       run: |
         if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
           echo "exists=true" >> $GITHUB_OUTPUT
-          echo "⚠️ Tag v${{ steps.version.outputs.version }} already exists, skipping release"
+          echo "Tag v${{ steps.version.outputs.version }} already exists, skipping release"
         else
           echo "exists=false" >> $GITHUB_OUTPUT
-          echo "✅ Tag v${{ steps.version.outputs.version }} does not exist, will create release"
+          echo "Tag v${{ steps.version.outputs.version }} does not exist, will create release"
         fi
 
     - name: Get previous tag
       id: previous_tag
       if: steps.check_tag.outputs.exists == 'false'
       run: |
-        PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        PREV_TAG="${{ steps.latest_tag.outputs.tag }}"
         if [ -z "$PREV_TAG" ]; then
           echo "previous_tag=" >> $GITHUB_OUTPUT
           echo "is_first_release=true" >> $GITHUB_OUTPUT
-          echo "📦 No previous tag found - this is the first release"
+          echo "No previous tag found - this is the first semver release"
         else
           echo "previous_tag=${PREV_TAG}" >> $GITHUB_OUTPUT
           echo "is_first_release=false" >> $GITHUB_OUTPUT
-          echo "📋 Previous tag: ${PREV_TAG}"
+          echo "Previous tag: ${PREV_TAG}"
         fi
 
     - name: Generate changelog
       id: changelog
       if: steps.check_tag.outputs.exists == 'false'
       run: |
-        echo "📝 Generating changelog..."
-
-        RELEASE_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
         VERSION="v${{ steps.version.outputs.version }}"
+        PREV_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
+        REPO="github.com/mstephenholl/go-solar"
 
         if [ "${{ steps.previous_tag.outputs.is_first_release }}" = "true" ]; then
-          # First release - include all commits
           COMMIT_RANGE=""
-          CHANGELOG_HEADER="Initial Release"
-          PREV_TAG_INFO=""
+          echo "## Initial Release" > changelog.md
         else
-          # Subsequent release - commits since last tag
-          PREV_TAG="${{ steps.previous_tag.outputs.previous_tag }}"
           COMMIT_RANGE="${PREV_TAG}..HEAD"
-          CHANGELOG_HEADER="Changes since ${PREV_TAG}"
-          PREV_TAG_INFO="**Previous Release:** ${PREV_TAG}"
+          echo "## Changes since ${PREV_TAG}" > changelog.md
         fi
+        echo "" >> changelog.md
 
-        # Get all commits (categorized by conventional commit prefixes)
-        ALL_COMMITS=$(git log ${COMMIT_RANGE} --pretty=format:"%s (%h)" --no-merges)
+        # Categorize commits by conventional commit prefix
+        for category in \
+          "feat:Features" \
+          "fix:Bug Fixes" \
+          "perf:Performance" \
+          "refactor:Refactors" \
+          "docs:Documentation" \
+          "test:Tests" \
+          "chore:Maintenance"; do
+          PREFIX="${category%%:*}"
+          LABEL="${category##*:}"
+          MATCHES=$(git log ${COMMIT_RANGE} --pretty=format:"- %s (%h)" --no-merges \
+            | grep -E "^- ${PREFIX}(\(.*\))?:" || true)
+          if [ -n "$MATCHES" ]; then
+            echo "### ${LABEL}" >> changelog.md
+            echo "" >> changelog.md
+            echo "$MATCHES" >> changelog.md
+            echo "" >> changelog.md
+          fi
+        done
 
-        # Categorize commits
-        FEATURES=$(echo "${ALL_COMMITS}" | grep -E "^feat(\(.*\))?:" || true)
-        FIXES=$(echo "${ALL_COMMITS}" | grep -E "^fix(\(.*\))?:" || true)
-        PERF=$(echo "${ALL_COMMITS}" | grep -E "^perf(\(.*\))?:" || true)
-        REFACTOR=$(echo "${ALL_COMMITS}" | grep -E "^refactor(\(.*\))?:" || true)
-        DOCS=$(echo "${ALL_COMMITS}" | grep -E "^docs(\(.*\))?:" || true)
-        TESTS=$(echo "${ALL_COMMITS}" | grep -E "^test(\(.*\))?:" || true)
-        CHORE=$(echo "${ALL_COMMITS}" | grep -E "^chore(\(.*\))?:" || true)
-        ENHANCEMENT=$(echo "${ALL_COMMITS}" | grep -E "^enhancement(\(.*\))?:" || true)
-        OTHER=$(echo "${ALL_COMMITS}" | grep -vE "^(feat|fix|perf|refactor|docs|test|chore|enhancement)(\(.*\))?:" || true)
-
-        # Count total commits
-        COMMIT_COUNT=$(echo "${ALL_COMMITS}" | wc -l | tr -d ' ')
-
-        # Build categorized changelog - write directly to file for proper newline handling
-        cat > changelog.md << 'CHANGELOG_START'
-        ## CHANGELOG_HEADER_PLACEHOLDER
-
-        **Release Date:** RELEASE_DATE_PLACEHOLDER
-        **Commit:** `COMMIT_SHA_PLACEHOLDER`
-        PREV_TAG_INFO_PLACEHOLDER
-
-        CHANGELOG_START
-
-        # Append categorized commits
-        if [ -n "${FEATURES}" ]; then
-          echo "### ✨ Features" >> changelog.md
+        # Uncategorized commits
+        OTHER=$(git log ${COMMIT_RANGE} --pretty=format:"- %s (%h)" --no-merges \
+          | grep -vE "^- (feat|fix|perf|refactor|docs|test|chore)(\(.*\))?:" || true)
+        if [ -n "$OTHER" ]; then
+          echo "### Other Changes" >> changelog.md
           echo "" >> changelog.md
-          echo "${FEATURES}" >> changelog.md
+          echo "$OTHER" >> changelog.md
           echo "" >> changelog.md
         fi
 
-        if [ -n "${ENHANCEMENT}" ]; then
-          echo "### 🚀 Enhancements" >> changelog.md
-          echo "" >> changelog.md
-          echo "${ENHANCEMENT}" >> changelog.md
-          echo "" >> changelog.md
-        fi
-
-        if [ -n "${FIXES}" ]; then
-          echo "### 🐛 Bug Fixes" >> changelog.md
-          echo "" >> changelog.md
-          echo "${FIXES}" >> changelog.md
-          echo "" >> changelog.md
-        fi
-
-        if [ -n "${PERF}" ]; then
-          echo "### ⚡ Performance Improvements" >> changelog.md
-          echo "" >> changelog.md
-          echo "${PERF}" >> changelog.md
-          echo "" >> changelog.md
-        fi
-
-        if [ -n "${REFACTOR}" ]; then
-          echo "### ♻️ Refactors" >> changelog.md
-          echo "" >> changelog.md
-          echo "${REFACTOR}" >> changelog.md
-          echo "" >> changelog.md
-        fi
-
-        if [ -n "${DOCS}" ]; then
-          echo "### 📚 Documentation" >> changelog.md
-          echo "" >> changelog.md
-          echo "${DOCS}" >> changelog.md
-          echo "" >> changelog.md
-        fi
-
-        if [ -n "${TESTS}" ]; then
-          echo "### 🧪 Tests" >> changelog.md
-          echo "" >> changelog.md
-          echo "${TESTS}" >> changelog.md
-          echo "" >> changelog.md
-        fi
-
-        if [ -n "${CHORE}" ]; then
-          echo "### 🔧 Maintenance" >> changelog.md
-          echo "" >> changelog.md
-          echo "${CHORE}" >> changelog.md
-          echo "" >> changelog.md
-        fi
-
-        if [ -n "${OTHER}" ]; then
-          echo "### 📝 Other Changes" >> changelog.md
-          echo "" >> changelog.md
-          echo "${OTHER}" >> changelog.md
-          echo "" >> changelog.md
-        fi
-
-        # Replace placeholders
-        sed -i.bak "s/CHANGELOG_HEADER_PLACEHOLDER/${CHANGELOG_HEADER}/" changelog.md
-        sed -i.bak "s/RELEASE_DATE_PLACEHOLDER/${RELEASE_DATE}/" changelog.md
-        sed -i.bak "s/COMMIT_SHA_PLACEHOLDER/${{ github.sha }}/" changelog.md
-        sed -i.bak "s/PREV_TAG_INFO_PLACEHOLDER/${PREV_TAG_INFO}/" changelog.md
-        rm changelog.md.bak
-
-        # Continue with rest of changelog
         cat >> changelog.md << EOF
-
         ---
 
-        ### 📦 Installation
+        ### Installation
 
         \`\`\`bash
-        go get github.com/mstephenholl/go-solar@${VERSION}
+        go get ${REPO}@${VERSION}
         \`\`\`
 
-        ### 📖 Documentation
+        ### Documentation
 
-        - [Package Documentation](https://pkg.go.dev/github.com/mstephenholl/go-solar@${VERSION})
-        - [GitHub Repository](https://github.com/mstephenholl/go-solar)
-        - [Full Changelog](https://github.com/mstephenholl/go-solar/compare/${{ steps.previous_tag.outputs.previous_tag }}...${VERSION})
+        - [Package Documentation](https://pkg.go.dev/${REPO}@${VERSION})
+        - [GitHub Repository](https://${REPO})
+        EOF
 
-        ### ⚙️ Requirements
+        if [ -n "$PREV_TAG" ]; then
+          echo "- [Full Changelog](https://${REPO}/compare/${PREV_TAG}...${VERSION})" >> changelog.md
+        fi
+
+        cat >> changelog.md << EOF
+
+        ### Requirements
 
         - Go 1.24 or later
         EOF
 
-        echo "✅ Changelog generated successfully"
+        echo "Changelog generated successfully"
         cat changelog.md
 
     - name: Create Git tag
@@ -239,7 +233,7 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
         git push origin "v${{ steps.version.outputs.version }}"
-        echo "🏷️ Tag v${{ steps.version.outputs.version }} created and pushed"
+        echo "Tag v${{ steps.version.outputs.version }} created and pushed"
 
     - name: Create GitHub Release
       if: steps.check_tag.outputs.exists == 'false'
@@ -257,13 +251,11 @@ jobs:
     - name: Summary
       if: steps.check_tag.outputs.exists == 'false'
       run: |
-        echo "## ✅ Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "## Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Release Details" >> $GITHUB_STEP_SUMMARY
-        echo "- **Version:** v${{ steps.version.outputs.version }} (CalVer: YYYY.MM.MICRO)" >> $GITHUB_STEP_SUMMARY
-        echo "- **Year:** ${{ steps.version.outputs.year }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Month:** ${{ steps.version.outputs.month }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Micro:** ${{ steps.version.outputs.micro }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version:** v${{ steps.version.outputs.version }} (Semver)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Bump type:** ${{ steps.bump.outputs.type }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Previous Tag:** ${{ steps.previous_tag.outputs.previous_tag || 'None (first release)' }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -279,7 +271,7 @@ jobs:
     - name: Skip message
       if: steps.check_tag.outputs.exists == 'true'
       run: |
-        echo "## ℹ️ Release Skipped" >> $GITHUB_STEP_SUMMARY
+        echo "## Release Skipped" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Tag v${{ steps.version.outputs.version }} already exists for this commit." >> $GITHUB_STEP_SUMMARY
         echo "No new release was created." >> $GITHUB_STEP_SUMMARY
