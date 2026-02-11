@@ -10,7 +10,7 @@ func hourAngle(latitude, declination float64) float64 {
 	var (
 		latitudeRad    = latitude * Degree
 		declinationRad = declination * Degree
-		numerator      = SunriseCorrectionAngle - math.Sin(latitudeRad)*math.Sin(declinationRad)
+		numerator      = math.Sin(SunriseCorrectionAngle) - math.Sin(latitudeRad)*math.Sin(declinationRad)
 		denominator    = math.Cos(latitudeRad) * math.Cos(declinationRad)
 	)
 
