@@ -30,7 +30,7 @@ func BenchmarkMeanAnomaly(b *testing.B) {
 	d := 2451545.0 // J2000 epoch
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = meanAnomaly(d)
 	}
 }

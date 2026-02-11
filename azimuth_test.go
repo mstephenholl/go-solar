@@ -103,7 +103,7 @@ func TestAzimuth_Range(t *testing.T) {
 	loc := NewLocation(43.65, -79.38)
 	date := time.Date(2024, time.June, 21, 0, 0, 0, 0, time.UTC)
 
-	for hour := 0; hour < 24; hour++ {
+	for hour := range 24 {
 		when := date.Add(time.Duration(hour) * time.Hour)
 		azimuth := Azimuth(loc, when)
 

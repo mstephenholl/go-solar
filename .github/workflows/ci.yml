@@ -25,9 +25,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Checkout code
-      uses: actions/checkout@v4
-
     - name: Setup Go environment
       uses: ./.github/actions/setup-go
       with:
@@ -51,6 +48,7 @@ jobs:
         fi
 
     - name: Run tests
+      shell: bash
       run: go test -v -race -timeout 5m -coverprofile=coverage.out -covermode=atomic ./...
 
     - name: Upload coverage to Codecov
