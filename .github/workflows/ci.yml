@@ -3,11 +3,13 @@ name: CI
 on:
   push:
     branches: [ master, main, develop ]
-  pull_request:
-    branches: [ master, main, develop ]
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -53,7 +55,7 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.go-version == '1.25'
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         files: ./coverage.out
         flags: unittests
@@ -72,7 +74,7 @@ jobs:
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v8
       with:
-        version: latest
+        version: v2.5.0
         args: --timeout=5m
 
   security:
@@ -84,7 +86,7 @@ jobs:
       uses: ./.github/actions/setup-go
 
     - name: Run Gosec Security Scanner
-      uses: securego/gosec@master
+      uses: securego/gosec@v2.23.0
       with:
         args: './...'
 
