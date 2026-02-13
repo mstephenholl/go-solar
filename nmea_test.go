@@ -629,7 +629,7 @@ func BenchmarkSunriseFromNMEA_RMC(b *testing.B) {
 	nmea := "$GPRMC,123519,A,4339.192,N,07922.992,W,022.4,084.4,230394,003.1,W*71"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
 		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
 		_, _ = Sunrise(loc, tm)
@@ -640,7 +640,7 @@ func BenchmarkSunsetFromNMEA_RMC(b *testing.B) {
 	nmea := "$GPRMC,123519,A,4339.192,N,07922.992,W,022.4,084.4,230394,003.1,W*71"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
 		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
 		_, _ = Sunset(loc, tm)
@@ -651,7 +651,7 @@ func BenchmarkSunriseSunsetFromNMEA_RMC(b *testing.B) {
 	nmea := "$GPRMC,123519,A,4339.192,N,07922.992,W,022.4,084.4,230394,003.1,W*71"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
 		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
 		_, _, _ = SunriseSunset(loc, tm)
@@ -662,7 +662,7 @@ func BenchmarkSunriseFromNMEA_GGA(b *testing.B) {
 	nmea := "$GPGGA,123519,4339.192,N,07922.992,W,1,08,0.9,545.4,M,46.9,M,,*5C"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(nmea, 1994, time.March, 23)
 		tm, _ := NewTimeFromNMEA(nmea, 1994, time.March, 23)
 		_, _ = Sunrise(loc, tm)
@@ -673,7 +673,7 @@ func BenchmarkParseNMEA_RMC(b *testing.B) {
 	nmea := "$GPRMC,123519,A,4339.192,N,07922.992,W,022.4,084.4,230394,003.1,W*71"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = parseNMEA(nmea, 0, 0, 0)
 	}
 }
@@ -682,21 +682,21 @@ func BenchmarkParseNMEA_GGA(b *testing.B) {
 	nmea := "$GPGGA,123519,4339.192,N,07922.992,W,1,08,0.9,545.4,M,46.9,M,,*5C"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = parseNMEA(nmea, 1994, time.March, 23)
 	}
 }
 
 func BenchmarkParseLatitude(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = parseLatitude("4339.192", "N")
 	}
 }
 
 func BenchmarkParseLongitude(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = parseLongitude("07922.992", "W")
 	}
 }
@@ -705,7 +705,7 @@ func BenchmarkValidateChecksum(b *testing.B) {
 	sentence := "GPRMC,123519,A,4339.192,N,07922.992,W,022.4,084.4,230394,003.1,W"
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = validateChecksum(sentence, "71")
 	}
 }

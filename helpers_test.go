@@ -60,13 +60,13 @@ func TestAlmostEqual(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkAbs(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		Abs(-42.5)
 	}
 }
 
 func BenchmarkAlmostEqual(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		AlmostEqual(1.0, 1.00001, 0.001)
 	}
 }

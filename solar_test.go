@@ -77,7 +77,7 @@ func BenchmarkSunrise(b *testing.B) {
 	tm := NewTime(2024, time.June, 21)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = Sunrise(loc, tm)
 	}
 }
@@ -88,7 +88,7 @@ func BenchmarkSunset(b *testing.B) {
 	tm := NewTime(2024, time.June, 21)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = Sunset(loc, tm)
 	}
 }
@@ -99,7 +99,7 @@ func BenchmarkSunriseSunset(b *testing.B) {
 	tm := NewTime(2024, time.June, 21)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _ = SunriseSunset(loc, tm)
 	}
 }
@@ -110,7 +110,7 @@ func BenchmarkSunriseSunset_Polar(b *testing.B) {
 	tm := NewTime(2020, time.June, 25)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, _ = SunriseSunset(loc, tm)
 	}
 }
@@ -132,7 +132,7 @@ func BenchmarkSunriseSunset_Latitudes(b *testing.B) {
 		b.Run(tc.name, func(b *testing.B) {
 			loc := NewLocation(tc.latitude, tc.longitude)
 			tm := NewTime(2024, time.June, 21)
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_, _, _ = SunriseSunset(loc, tm)
 			}
 		})

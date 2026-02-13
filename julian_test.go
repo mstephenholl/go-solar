@@ -52,7 +52,7 @@ func BenchmarkTimeToJulianDay(b *testing.B) {
 	t := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = TimeToJulianDay(t)
 	}
 }
@@ -62,7 +62,7 @@ func BenchmarkJulianDayToTime(b *testing.B) {
 	jd := 2451545.0
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = JulianDayToTime(jd)
 	}
 }

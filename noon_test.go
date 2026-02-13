@@ -175,7 +175,7 @@ func TestMeanSolarNoonFromNMEA_ConsistencyWithDirect(t *testing.T) {
 // BenchmarkMeanSolarNoonFromNMEA_RMC benchmarks MeanSolarNoonFromNMEA with RMC
 func BenchmarkMeanSolarNoonFromNMEA_RMC(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
 		tm, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
 		_ = MeanSolarNoon(loc, tm)
@@ -185,7 +185,7 @@ func BenchmarkMeanSolarNoonFromNMEA_RMC(b *testing.B) {
 // BenchmarkMeanSolarNoonFromNMEA_GGA benchmarks MeanSolarNoonFromNMEA with GGA
 func BenchmarkMeanSolarNoonFromNMEA_GGA(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
 		tm, _ := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
 		_ = MeanSolarNoon(loc, tm)

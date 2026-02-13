@@ -32,7 +32,7 @@ func BenchmarkTransit(b *testing.B) {
 	eclipticLongitude := 280.4665
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = transit(d, meanAnomaly, eclipticLongitude)
 	}
 }
