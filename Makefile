@@ -15,6 +15,12 @@ COVERAGE_HTML=$(COVERAGE_DIR)/coverage.html
 # Tool versions (update as needed)
 GOLANGCI_LINT_VERSION=v2.5.0
 
+# Resolve goimports binary (PATH → GOBIN → fallback to gofmt)
+GOIMPORTS := $(or $(shell command -v goimports 2>/dev/null),$(shell test -x "$$(go env GOPATH)/bin/goimports" && echo "$$(go env GOPATH)/bin/goimports"))
+
+# Required development tools
+TOOLS = golangci-lint staticcheck goimports govulncheck
+
 # Colors for output
 COLOR_RESET=\033[0m
 COLOR_BOLD=\033[1m
@@ -89,29 +95,23 @@ test-bench-mem: ## Run benchmarks with memory profiling
 .PHONY: fmt
 fmt: ## Format code and organize imports with goimports
 	@echo "$(COLOR_GREEN)Formatting code and organizing imports...$(COLOR_RESET)"
-	@GOBIN=$$(go env GOPATH)/bin; \
-	if command -v goimports > /dev/null 2>&1; then \
-		goimports -w -local $(PACKAGE) .; \
-	elif [ -x "$$GOBIN/goimports" ]; then \
-		$$GOBIN/goimports -w -local $(PACKAGE) .; \
-	else \
-		echo "$(COLOR_YELLOW)goimports not found, falling back to gofmt$(COLOR_RESET)"; \
-		gofmt -w -s .; \
-	fi
+ifdef GOIMPORTS
+	@$(GOIMPORTS) -w -local $(PACKAGE) .
+else
+	@echo "$(COLOR_YELLOW)goimports not found, falling back to gofmt$(COLOR_RESET)"
+	@gofmt -w -s .
+endif
 	@echo "$(COLOR_GREEN)Code formatted successfully$(COLOR_RESET)"
 
 .PHONY: fmt-check
 fmt-check: ## Check if code is formatted and imports are organized
 	@echo "$(COLOR_GREEN)Checking code formatting and imports...$(COLOR_RESET)"
-	@GOBIN=$$(go env GOPATH)/bin; \
-	if command -v goimports > /dev/null 2>&1; then \
-		test -z "$$(goimports -l -local $(PACKAGE) .)" || (echo "$(COLOR_YELLOW)Files need formatting:$(COLOR_RESET)" && goimports -l -local $(PACKAGE) . && exit 1); \
-	elif [ -x "$$GOBIN/goimports" ]; then \
-		test -z "$$($$GOBIN/goimports -l -local $(PACKAGE) .)" || (echo "$(COLOR_YELLOW)Files need formatting:$(COLOR_RESET)" && $$GOBIN/goimports -l -local $(PACKAGE) . && exit 1); \
-	else \
-		echo "$(COLOR_YELLOW)goimports not found, using gofmt$(COLOR_RESET)"; \
-		test -z "$$(gofmt -l .)" || (echo "$(COLOR_YELLOW)Files need formatting:$(COLOR_RESET)" && gofmt -l . && exit 1); \
-	fi
+ifdef GOIMPORTS
+	@test -z "$$($(GOIMPORTS) -l -local $(PACKAGE) .)" || (echo "$(COLOR_YELLOW)Files need formatting:$(COLOR_RESET)" && $(GOIMPORTS) -l -local $(PACKAGE) . && exit 1)
+else
+	@echo "$(COLOR_YELLOW)goimports not found, using gofmt$(COLOR_RESET)"
+	@test -z "$$(gofmt -l .)" || (echo "$(COLOR_YELLOW)Files need formatting:$(COLOR_RESET)" && gofmt -l . && exit 1)
+endif
 
 .PHONY: vet
 vet: ## Run go vet
@@ -186,38 +186,16 @@ check-tools: ## Check which development tools are installed
 	@echo "$(COLOR_BOLD)Checking installed development tools:$(COLOR_RESET)"
 	@echo ""
 	@GOBIN=$$(go env GOPATH)/bin; \
-	printf "  %-20s " "golangci-lint:"; \
-	if command -v golangci-lint > /dev/null 2>&1; then \
-		echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET) (version: $$(golangci-lint --version 2>&1 | head -1 | awk '{print $$4}'))"; \
-	elif [ -x "$$GOBIN/golangci-lint" ]; then \
-		echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET) (version: $$($$GOBIN/golangci-lint --version 2>&1 | head -1 | awk '{print $$4}')) $(COLOR_YELLOW)[not in PATH]$(COLOR_RESET)"; \
-	else \
-		echo "$(COLOR_YELLOW)✗ not installed$(COLOR_RESET)"; \
-	fi; \
-	printf "  %-20s " "staticcheck:"; \
-	if command -v staticcheck > /dev/null 2>&1; then \
-		echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET) (version: $$(staticcheck -version 2>&1 | awk '{print $$3}'))"; \
-	elif [ -x "$$GOBIN/staticcheck" ]; then \
-		echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET) (version: $$($$GOBIN/staticcheck -version 2>&1 | awk '{print $$3}')) $(COLOR_YELLOW)[not in PATH]$(COLOR_RESET)"; \
-	else \
-		echo "$(COLOR_YELLOW)✗ not installed$(COLOR_RESET)"; \
-	fi; \
-	printf "  %-20s " "goimports:"; \
-	if command -v goimports > /dev/null 2>&1; then \
-		echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET)"; \
-	elif [ -x "$$GOBIN/goimports" ]; then \
-		echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET) $(COLOR_YELLOW)[not in PATH]$(COLOR_RESET)"; \
-	else \
-		echo "$(COLOR_YELLOW)✗ not installed$(COLOR_RESET)"; \
-	fi; \
-	printf "  %-20s " "govulncheck:"; \
-	if command -v govulncheck > /dev/null 2>&1; then \
-		echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET)"; \
-	elif [ -x "$$GOBIN/govulncheck" ]; then \
-		echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET) $(COLOR_YELLOW)[not in PATH]$(COLOR_RESET)"; \
-	else \
-		echo "$(COLOR_YELLOW)✗ not installed$(COLOR_RESET)"; \
-	fi
+	for tool in $(TOOLS); do \
+		printf "  %-20s " "$$tool:"; \
+		if command -v $$tool > /dev/null 2>&1; then \
+			echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET)"; \
+		elif [ -x "$$GOBIN/$$tool" ]; then \
+			echo "$(COLOR_GREEN)✓ installed$(COLOR_RESET) $(COLOR_YELLOW)[not in PATH]$(COLOR_RESET)"; \
+		else \
+			echo "$(COLOR_YELLOW)✗ not installed$(COLOR_RESET)"; \
+		fi; \
+	done
 	@echo ""
 	@GOBIN=$$(go env GOPATH)/bin; \
 	if ! echo $$PATH | grep -q "$$GOBIN"; then \
@@ -226,16 +204,30 @@ check-tools: ## Check which development tools are installed
 		echo ""; \
 	fi
 
+# Helper: install all tools unconditionally
+define install-all-tools
+	@GOBIN=$$(go env GOPATH)/bin; \
+	echo "  Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."; \
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$$GOBIN" $(GOLANGCI_LINT_VERSION)
+	@echo "  Installing staticcheck..."
+	@go install honnef.co/go/tools/cmd/staticcheck@latest
+	@echo "  Installing goimports..."
+	@go install golang.org/x/tools/cmd/goimports@latest
+	@echo "  Installing govulncheck..."
+	@go install golang.org/x/vuln/cmd/govulncheck@latest
+endef
+
 .PHONY: install-tools
 install-tools: ## Install missing development tools (interactive)
 	@echo "$(COLOR_BOLD)Development Tools Installation$(COLOR_RESET)"
 	@echo ""
 	@GOBIN=$$(go env GOPATH)/bin; \
 	MISSING=""; \
-	(command -v golangci-lint > /dev/null 2>&1 || [ -x "$$GOBIN/golangci-lint" ]) || MISSING="$$MISSING\n  - golangci-lint ($(GOLANGCI_LINT_VERSION))"; \
-	(command -v staticcheck > /dev/null 2>&1 || [ -x "$$GOBIN/staticcheck" ]) || MISSING="$$MISSING\n  - staticcheck"; \
-	(command -v goimports > /dev/null 2>&1 || [ -x "$$GOBIN/goimports" ]) || MISSING="$$MISSING\n  - goimports"; \
-	(command -v govulncheck > /dev/null 2>&1 || [ -x "$$GOBIN/govulncheck" ]) || MISSING="$$MISSING\n  - govulncheck"; \
+	for tool in $(TOOLS); do \
+		if ! command -v $$tool > /dev/null 2>&1 && ! [ -x "$$GOBIN/$$tool" ]; then \
+			MISSING="$$MISSING\n  - $$tool"; \
+		fi; \
+	done; \
 	if [ -z "$$MISSING" ]; then \
 		echo "$(COLOR_GREEN)✓ All development tools are already installed!$(COLOR_RESET)"; \
 		echo ""; \
@@ -250,38 +242,19 @@ install-tools: ## Install missing development tools (interactive)
 	if [ "$$response" != "y" ] && [ "$$response" != "Y" ]; then \
 		echo "$(COLOR_YELLOW)Installation cancelled.$(COLOR_RESET)"; \
 		exit 0; \
-	fi; \
-	echo ""; \
-	echo "$(COLOR_GREEN)Installing development tools...$(COLOR_RESET)"; \
-	if ! command -v golangci-lint > /dev/null 2>&1 && ! [ -x "$$GOBIN/golangci-lint" ]; then \
-		echo "  Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."; \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$$GOBIN" $(GOLANGCI_LINT_VERSION); \
-	fi; \
-	if ! command -v staticcheck > /dev/null 2>&1 && ! [ -x "$$GOBIN/staticcheck" ]; then \
-		echo "  Installing staticcheck..."; \
-		go install honnef.co/go/tools/cmd/staticcheck@latest; \
-	fi; \
-	if ! command -v goimports > /dev/null 2>&1 && ! [ -x "$$GOBIN/goimports" ]; then \
-		echo "  Installing goimports..."; \
-		go install golang.org/x/tools/cmd/goimports@latest; \
-	fi; \
-	if ! command -v govulncheck > /dev/null 2>&1 && ! [ -x "$$GOBIN/govulncheck" ]; then \
-		echo "  Installing govulncheck..."; \
-		go install golang.org/x/vuln/cmd/govulncheck@latest; \
-	fi; \
-	echo ""; \
-	echo "$(COLOR_GREEN)✓ Tools installed successfully!$(COLOR_RESET)"; \
-	echo ""; \
-	$(MAKE) check-tools
+	fi
+	@echo ""
+	@echo "$(COLOR_GREEN)Installing development tools...$(COLOR_RESET)"
+	$(install-all-tools)
+	@echo ""
+	@echo "$(COLOR_GREEN)✓ Tools installed successfully!$(COLOR_RESET)"
+	@echo ""
+	@$(MAKE) check-tools
 
 .PHONY: install-tools-force
 install-tools-force: ## Install all development tools without prompting
 	@echo "$(COLOR_GREEN)Installing all development tools (no confirmation)...$(COLOR_RESET)"
-	@GOBIN=$$(go env GOPATH)/bin; \
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b "$$GOBIN" $(GOLANGCI_LINT_VERSION)
-	@go install honnef.co/go/tools/cmd/staticcheck@latest
-	@go install golang.org/x/tools/cmd/goimports@latest
-	@go install golang.org/x/vuln/cmd/govulncheck@latest
+	$(install-all-tools)
 	@echo "$(COLOR_GREEN)✓ All tools installed successfully!$(COLOR_RESET)"
 
 # Security
@@ -312,22 +285,22 @@ ci-quick: fmt-check vet test ## Quick validation (format, vet, test only)
 ci-local: ## Complete CI simulation with progress output (matches GitHub Actions)
 	@echo "$(COLOR_BOLD)Running complete CI pipeline locally...$(COLOR_RESET)"
 	@echo ""
-	@echo "$(COLOR_BLUE)Step 1/6: Download dependencies$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)=> Download dependencies$(COLOR_RESET)"
 	@$(MAKE) deps
 	@echo ""
-	@echo "$(COLOR_BLUE)Step 2/6: Verify dependencies$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)=> Verify dependencies$(COLOR_RESET)"
 	@$(MAKE) deps-verify
 	@echo ""
-	@echo "$(COLOR_BLUE)Step 3/6: Run go vet$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)=> Run go vet$(COLOR_RESET)"
 	@$(MAKE) vet
 	@echo ""
-	@echo "$(COLOR_BLUE)Step 4/6: Check formatting and imports$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)=> Check formatting and imports$(COLOR_RESET)"
 	@$(MAKE) fmt-check
 	@echo ""
-	@echo "$(COLOR_BLUE)Step 5/6: Run tests with coverage$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)=> Run tests with coverage$(COLOR_RESET)"
 	@$(MAKE) test-coverage
 	@echo ""
-	@echo "$(COLOR_BLUE)Step 6/6: Run linter$(COLOR_RESET)"
+	@echo "$(COLOR_BLUE)=> Run linter$(COLOR_RESET)"
 	@$(MAKE) lint
 	@echo ""
 	@echo "$(COLOR_GREEN)✓ All CI checks passed!$(COLOR_RESET)"
