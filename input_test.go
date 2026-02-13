@@ -356,34 +356,34 @@ func TestTimeString(t *testing.T) {
 
 // Benchmark tests
 func BenchmarkNewLocation(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewLocation(43.65, -79.38)
 	}
 }
 
 func BenchmarkNewLocationFromNMEA(b *testing.B) {
 	nmea := "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = NewLocationFromNMEA(nmea, 2025, time.January, 15)
 	}
 }
 
 func BenchmarkNewTime(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewTime(2025, time.October, 21)
 	}
 }
 
 func BenchmarkNewTimeFromDateTime(b *testing.B) {
 	when := time.Date(2025, time.October, 21, 14, 30, 0, 0, time.UTC)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = NewTimeFromDateTime(when)
 	}
 }
 
 func BenchmarkNewTimeFromNMEA(b *testing.B) {
 	nmea := "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A"
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = NewTimeFromNMEA(nmea, 0, 0, 0)
 	}
 }

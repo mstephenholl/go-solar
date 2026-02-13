@@ -162,7 +162,7 @@ func BenchmarkAzimuth(b *testing.B) {
 	loc := NewLocation(43.65, -79.38)
 	when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range 24 {
 		_ = Azimuth(loc, when)
 	}
 }
@@ -178,9 +178,11 @@ func BenchmarkAzimuth_MultipleLocations(b *testing.B) {
 	when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	var i int
+	for b.Loop() {
 		loc := locations[i%len(locations)]
 		_ = Azimuth(loc, when)
+		i++
 	}
 }
 
@@ -323,7 +325,7 @@ func TestAzimuthFromNMEA_ConsistencyWithDirect(t *testing.T) {
 func BenchmarkAzimuthFromNMEA_RMC(b *testing.B) {
 	nmea := "$GPRMC,154200,A,4339.00,N,07922.80,W,000.0,000.0,140100,000.0,W*7B"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
 		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
 		_ = Azimuth(loc, tm.DateTime())
@@ -334,7 +336,7 @@ func BenchmarkAzimuthFromNMEA_RMC(b *testing.B) {
 func BenchmarkAzimuthFromNMEA_GGA(b *testing.B) {
 	nmea := "$GPGGA,055900,0000.000,N,00000.000,E,1,08,0.9,545.4,M,46.9,M,,*41"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(nmea, 1970, time.January, 1)
 		tm, _ := NewTimeFromNMEA(nmea, 1970, time.January, 1)
 		_ = Azimuth(loc, tm.DateTime())

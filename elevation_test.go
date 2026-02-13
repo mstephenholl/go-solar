@@ -124,7 +124,7 @@ func BenchmarkElevation(b *testing.B) {
 	when := time.Date(2024, time.June, 21, 12, 0, 0, 0, time.UTC)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = Elevation(loc, when)
 	}
 }
@@ -136,7 +136,7 @@ func BenchmarkTimeOfElevation(b *testing.B) {
 	tm := NewTime(2024, time.June, 21)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = TimeOfElevation(loc, elevation, tm)
 	}
 }
@@ -160,7 +160,7 @@ func BenchmarkTimeOfElevation_Angles(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_, _ = TimeOfElevation(loc, tc.elevation, tm)
 			}
 		})
@@ -396,7 +396,7 @@ func TestTimeOfElevationFromNMEA_GGA_MissingDate(t *testing.T) {
 // Benchmark for ElevationFromNMEA with RMC
 func BenchmarkElevationFromNMEA_RMC(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
 		tm, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
 		_ = Elevation(loc, tm.DateTime())
@@ -406,7 +406,7 @@ func BenchmarkElevationFromNMEA_RMC(b *testing.B) {
 // Benchmark for ElevationFromNMEA with GGA
 func BenchmarkElevationFromNMEA_GGA(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
 		tm, _ := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
 		_ = Elevation(loc, tm.DateTime())
@@ -416,7 +416,7 @@ func BenchmarkElevationFromNMEA_GGA(b *testing.B) {
 // Benchmark for TimeOfElevationFromNMEA with RMC
 func BenchmarkTimeOfElevationFromNMEA_RMC(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
 		tm, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
 		_, _ = TimeOfElevation(loc, -6.0, tm)
@@ -426,7 +426,7 @@ func BenchmarkTimeOfElevationFromNMEA_RMC(b *testing.B) {
 // Benchmark for TimeOfElevationFromNMEA with GGA
 func BenchmarkTimeOfElevationFromNMEA_GGA(b *testing.B) {
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(validGGA, 1994, time.March, 23)
 		tm, _ := NewTimeFromNMEA(validGGA, 1994, time.March, 23)
 		_, _ = TimeOfElevation(loc, -6.0, tm)
@@ -448,7 +448,7 @@ func BenchmarkTimeOfElevationFromNMEA_Angles(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				loc, _ := NewLocationFromNMEA(validRMC, 0, 0, 0)
 				tm, _ := NewTimeFromNMEA(validRMC, 0, 0, 0)
 				_, _ = TimeOfElevation(loc, tc.elevation, tm)

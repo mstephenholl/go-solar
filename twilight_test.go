@@ -345,7 +345,7 @@ func BenchmarkDawn(b *testing.B) {
 	loc := NewLocation(43.65, -79.38)
 	tm := NewTime(2024, time.June, 21)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = Dawn(loc, tm)
 	}
 }
@@ -355,7 +355,7 @@ func BenchmarkDusk(b *testing.B) {
 	loc := NewLocation(43.65, -79.38)
 	tm := NewTime(2024, time.June, 21)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = Dusk(loc, tm)
 	}
 }
@@ -365,7 +365,7 @@ func BenchmarkDawnDusk(b *testing.B) {
 	loc := NewLocation(43.65, -79.38)
 	tm := NewTime(2024, time.June, 21)
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = DawnDusk(loc, tm)
 	}
 }
@@ -387,7 +387,7 @@ func BenchmarkDawn_AllTypes(b *testing.B) {
 	for _, tt := range types {
 		b.Run(tt.name, func(b *testing.B) {
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_ = Dawn(loc, tm, tt.tt)
 			}
 		})
@@ -398,7 +398,7 @@ func BenchmarkDawn_AllTypes(b *testing.B) {
 func BenchmarkDawnFromNMEA_RMC(b *testing.B) {
 	nmea := "$GPRMC,120000,A,4339.00,N,07922.80,W,000.0,000.0,010100,000.0,W*7E"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
 		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
 		_ = Dawn(loc, tm)
@@ -409,7 +409,7 @@ func BenchmarkDawnFromNMEA_RMC(b *testing.B) {
 func BenchmarkDuskFromNMEA_GGA(b *testing.B) {
 	nmea := "$GPGGA,120000,0000.000,N,00000.000,E,1,08,0.9,545.4,M,46.9,M,,*4B"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(nmea, 2024, time.June, 21)
 		tm, _ := NewTimeFromNMEA(nmea, 2024, time.June, 21)
 		_ = Dusk(loc, tm)
@@ -420,7 +420,7 @@ func BenchmarkDuskFromNMEA_GGA(b *testing.B) {
 func BenchmarkDawnDuskFromNMEA(b *testing.B) {
 	nmea := "$GPRMC,120000,A,4339.00,N,07922.80,W,000.0,000.0,010100,000.0,W*7E"
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		loc, _ := NewLocationFromNMEA(nmea, 0, 0, 0)
 		tm, _ := NewTimeFromNMEA(nmea, 0, 0, 0)
 		_, _ = DawnDusk(loc, tm)
