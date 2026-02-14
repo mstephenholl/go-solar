@@ -29,7 +29,7 @@ Thank you for your interest in contributing to go-solar! This document provides 
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.24 or later
 - Make (optional, but recommended)
 - Git
 
@@ -70,7 +70,7 @@ Use descriptive branch names:
 
 ### Code Style
 
-- Follow standard Go formatting (`gofmt`)
+- Follow standard Go formatting (`goimports`)
 - Use meaningful variable names
 - Add comments for exported functions
 - Document complex algorithms
@@ -109,20 +109,18 @@ Follow the [Conventional Commits](https://www.conventionalcommits.org/) specific
 
 **Types:**
 - `feat`: New feature
-- `enhancement`: Improvement to existing feature
 - `fix`: Bug fix
 - `perf`: Performance improvements
 - `refactor`: Code refactoring
 - `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
 - `test`: Adding or updating tests
 - `chore`: Maintenance tasks
 
 **Examples:**
 ```
 feat(elevation): add support for custom elevation angles
-enhancement(nmea): improve parsing performance by 30%
 fix(hourangle): correct polar night calculation
+perf(nmea): improve parsing performance by 30%
 docs(readme): update installation instructions
 test(sunrise): add edge case tests for polar regions
 ```
@@ -403,18 +401,25 @@ Releases are **fully automated** - you don't need to create tags or manage versi
 
 When your PR is merged to `master`:
 
-**Phase 1: CI Quality Gates** (must all pass)
-1. ✅ Tests run across multiple OS platforms (Ubuntu, macOS, Windows)
-2. ✅ Tests run across multiple Go versions (1.21, 1.22, 1.23)
-3. ✅ Linter validates code quality (golangci-lint)
-4. ✅ Security scans run (gosec, govulncheck)
-5. ✅ Build verifies the package compiles
-6. ✅ Benchmarks execute successfully
+**PR Validation** (`pr.yml` — runs on every pull request):
+- Build
+- Formatting check (`goimports`)
+- `go vet`
+- Tests with coverage (must meet 80% threshold)
+- Benchmarks
 
-**Phase 2: Release Creation** (only if Phase 1 passes)
-7. 🏷️ GitHub Actions automatically creates a CalVer version tag
-8. 📝 Changelog is generated from commit messages
-9. 🎉 GitHub release is created with notes
+**CI on push to master** (`ci.yml` — must all pass):
+- Tests across multiple OS platforms (Ubuntu, macOS, Windows)
+- Tests across multiple Go versions (1.24, 1.25)
+- Lint (golangci-lint)
+- Security scans (gosec, govulncheck)
+- Build
+- Benchmarks
+
+**Release** (`release.yml` — only if CI passes):
+- Automatically creates a semver version tag
+- Changelog is generated from commit messages
+- GitHub release is created with notes
 
 **Quality First:** The release workflow only triggers after all CI quality gates pass successfully. If any CI check fails, no release is created.
 
@@ -422,38 +427,28 @@ When your PR is merged to `master`:
 
 ### Versioning
 
-We use **[Calendar Versioning (CalVer)](https://calver.org/)**:
+We use **[Semantic Versioning (Semver)](https://semver.org/)**:
 
-**Format:** `YYYY.MM.MICRO`
+**Format:** `MAJOR.MINOR.PATCH` (e.g., `v1.0.0`, `v1.1.0`, `v1.1.1`)
 
-- `YYYY` - Full year (e.g., 2025)
-- `MM` - Zero-padded month (01-12)
-- `MICRO` - Incrementing number for releases within the same month (0, 1, 2, ...)
+Version bumps are determined automatically from conventional commit messages:
+- `feat!:` or `BREAKING CHANGE` in commit body → **major** bump
+- `feat:` → **minor** bump
+- `fix:`, `perf:`, `refactor:`, `docs:`, `test:`, `chore:` → **patch** bump
 
-**Examples:**
-- `v2025.10.0` - First release in October 2025
-- `v2025.10.1` - Second release in October 2025
-- `v2025.11.0` - First release in November 2025
-
-**Benefits:**
-- ✅ Chronologically sortable and human-readable
-- ✅ Clear release timing (same format as Ubuntu)
-- ✅ Handles multiple releases per month properly
-- ✅ No manual version management
-- ✅ Industry-standard CalVer format
+You can also trigger a manual release via `workflow_dispatch` with an explicit bump type (major, minor, or patch).
 
 ### Changelog Generation
 
 Your commit messages become release notes! Use [Conventional Commits](https://www.conventionalcommits.org/) for nice categorization:
 
-- `feat:` → ✨ Features
-- `enhancement:` → 🚀 Enhancements
-- `fix:` → 🐛 Bug Fixes
-- `perf:` → ⚡ Performance Improvements
-- `refactor:` → ♻️ Refactors
-- `docs:` → 📚 Documentation
-- `test:` → 🧪 Tests
-- `chore:` → 🔧 Maintenance
+- `feat:` → Features
+- `fix:` → Bug Fixes
+- `perf:` → Performance
+- `refactor:` → Refactors
+- `docs:` → Documentation
+- `test:` → Tests
+- `chore:` → Maintenance
 
 ## Questions?
 
